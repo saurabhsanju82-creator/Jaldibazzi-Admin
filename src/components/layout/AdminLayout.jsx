@@ -19,6 +19,7 @@ import {
   FiFolder,
   FiSliders,
   FiLayout,
+  FiActivity,
 } from 'react-icons/fi';
 
 export default function AdminLayout({ children }) {
@@ -80,6 +81,7 @@ export default function AdminLayout({ children }) {
     { id: 'products', path: '/products', label: 'Product Monitoring', icon: FiBox },
     { id: 'orders', path: '/orders', label: 'Orders & Sales', icon: FiShoppingBag },
     { id: 'reports', path: '/reports', label: 'Reports & Analytics', icon: FiBarChart2 },
+    { id: 'system-status', path: '/system-status', label: 'Live Status & Monitoring', icon: FiActivity },
   ];
 
   const handleLogout = async () => {
@@ -106,7 +108,7 @@ export default function AdminLayout({ children }) {
             <FiShield className="text-lg" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-white tracking-tight">Super Admin</div>
+            <div className="text-sm font-semibold text-white tracking-tight">Jaldibaazi Admin</div>
             <div className="text-[11px] text-slate-400 uppercase tracking-wider font-mono">Control Center</div>
           </div>
         </div>
@@ -120,11 +122,10 @@ export default function AdminLayout({ children }) {
               <Link
                 key={item.id}
                 to={item.path}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${
-                  active
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${active
                     ? 'bg-slate-800 text-white font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <Icon className={`text-base ${active ? 'text-emerald-400' : 'text-slate-400'}`} />
@@ -139,20 +140,6 @@ export default function AdminLayout({ children }) {
             );
           })}
         </nav>
-
-        {/* Quick Portal Switch Link */}
-        <div className="p-3 mx-3 mb-4 rounded-lg bg-slate-800/40 border border-slate-800 text-xs shrink-0">
-          <div className="text-slate-400 text-[11px] font-medium mb-1">Testing Portals?</div>
-          <a
-            href="http://localhost:5174"
-            target="_blank"
-            rel="noreferrer"
-            className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 font-medium"
-          >
-            <span>Open Vendor Portal</span>
-            <FiExternalLink className="text-[11px]" />
-          </a>
-        </div>
 
         {/* User Info & Sign out */}
         <div className="p-4 border-t border-slate-800/80 flex items-center justify-between shrink-0">
@@ -187,7 +174,7 @@ export default function AdminLayout({ children }) {
       <div className="md:hidden flex items-center justify-between h-16 px-4 bg-slate-900 text-white border-b border-slate-800 shrink-0">
         <div className="flex items-center gap-2">
           <FiShield className="text-emerald-400 text-lg" />
-          <span className="font-bold text-sm">Super Admin</span>
+          <span className="font-bold text-sm">Jaldibaazi Admin</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -208,9 +195,8 @@ export default function AdminLayout({ children }) {
                 key={item.id}
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium ${
-                  active ? 'bg-slate-800 text-white' : 'text-slate-400'
-                }`}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium ${active ? 'bg-slate-800 text-white' : 'text-slate-400'
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <Icon className="text-base" />
@@ -257,13 +243,6 @@ export default function AdminLayout({ children }) {
                   {currentNavItem?.label || 'Dashboard'}
                 </span>
               )}
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Platform Live
-              </div>
             </div>
           </div>
         </header>

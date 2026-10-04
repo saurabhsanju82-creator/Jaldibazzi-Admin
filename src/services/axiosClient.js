@@ -9,22 +9,30 @@ const axiosClient = axios.create({
   },
 });
 
-// Request interceptor to attach JWT token when present in storage
+// Request interceptor to attach JWT token and signal global loading
 axiosClient.interceptors.request.use(
   (config) => {
+    window.dispatchEvent(new Event('api:loading:start'));
     const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    window.dispatchEvent(new Event('api:loading:stop'));
+    return Promise.reject(error);
+  }
 );
 
-// Response interceptor for unified error handling
+// Response interceptor for unified error handling & loader dismissal
 axiosClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    window.dispatchEvent(new Event('api:loading:stop'));
+    return response;
+  },
   (error) => {
+    window.dispatchEvent(new Event('api:loading:stop'));
     if (error.response && error.response.status === 401) {
       // Clear client-side auth cache on invalid/expired session
       localStorage.removeItem('auth_token');

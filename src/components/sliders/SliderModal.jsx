@@ -1,21 +1,22 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { FiX, FiSliders, FiUploadCloud, FiCheck, FiTrash2, FiZap, FiAlertCircle } from 'react-icons/fi';
 import { extractGradientFromImage } from '../../utils/colorAnalyzer';
 
-const sliderSchema = Yup.object({
-  tagline: Yup.string().trim().optional(),
-  title: Yup.string().trim().required('Slider headline title is required'),
-  description: Yup.string().trim().optional(),
-  ctaText: Yup.string().trim().default('Explore Catalog'),
-  link: Yup.string().trim().required('Destination link URL is required'),
-  features: Yup.string().trim().optional(),
-  image: Yup.string().required('Slider image is required'),
-  bgGradient: Yup.string().optional(),
-  order: Yup.number().typeError('Order must be a number').min(0, 'Order cannot be negative').default(0),
-  isActive: Yup.boolean().default(true),
+const sliderSchema = z.object({
+  tagline: z.string().trim().optional().default(''),
+  title: z.string().trim().min(1, 'Slider headline title is required'),
+  description: z.string().trim().optional().default(''),
+  ctaText: z.string().trim().default('Explore Catalog'),
+  link: z.string().trim().min(1, 'Destination link URL is required'),
+  features: z.string().trim().optional().default(''),
+  image: z.string().min(1, 'Slider image is required'),
+  bgGradient: z.string().optional().default('linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.7) 100%)'),
+  order: z.coerce.number().min(0, 'Order cannot be negative').default(0),
+  isActive: z.boolean().default(true),
 });
 
 export default function SliderModal({ isOpen, onClose, onSave, slider }) {
@@ -23,44 +24,42 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
   const [analyzingGradient, setAnalyzingGradient] = useState(false);
   const fileInputRef = useRef(null);
 
-  const formik = useFormik({
-    initialValues: {
-      tagline: slider?.tagline || (slider ? '' : 'EXCLUSIVE CURATED SELECTION'),
-      title: slider?.title || '',
-      description: slider?.description || '',
-      ctaText: slider?.ctaText || 'Explore Catalog',
-      link: slider?.link || '/shop',
-      features: Array.isArray(slider?.features)
-        ? slider.features.join(', ')
-        : (slider?.features || (slider ? '' : 'Global Freight, Escrow Protection, 30-Day Returns')),
-      image: slider?.image || '',
-      bgGradient: slider?.bgGradient || 'linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.7) 100%)',
-      order: slider?.order || 0,
-      isActive: slider?.isActive !== undefined ? slider.isActive : true,
-    },
-    enableReinitialize: true,
-    validationSchema: sliderSchema,
-    onSubmit: (values) => {
-      const featureList = (values.features || '')
-        .split(',')
-        .map((f) => f.trim())
-        .filter(Boolean);
-
-      onSave({
-        tagline: (values.tagline || '').trim(),
-        title: values.title.trim(),
-        description: (values.description || '').trim(),
-        ctaText: (values.ctaText || '').trim() || 'Explore Catalog',
-        link: values.link.trim() || '/shop',
-        features: featureList,
-        image: values.image,
-        bgGradient: values.bgGradient,
-        order: Number(values.order) || 0,
-        isActive: values.isActive,
-      });
-      onClose();
-    },
+  const getInitialValues = () => ({
+    tagline: slider?.tagline || (slider ? '' : 'EXCLUSIVE CURATED SELECTION'),
+    title: slider?.title || '',
+    description: slider?.description || '',
+    ctaText: slider?.ctaText || 'Explore Catalog',
+    link: slider?.link || '/shop',
+    features: Array.isArray(slider?.features)
+      ? slider.features.join(', ')
+      : (slider?.features || (slider ? '' : 'Global Freight, Escrow Protection, 30-Day Returns')),
+    image: slider?.image || '',
+    bgGradient: slider?.bgGradient || 'linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.7) 100%)',
+    order: slider?.order || 0,
+    isActive: slider?.isActive !== undefined ? slider.isActive : true,
   });
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(sliderSchema),
+    defaultValues: getInitialValues(),
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      reset(getInitialValues());
+    }
+  }, [slider, isOpen, reset]);
+
+  const imageValue = watch('image');
+  const bgGradientValue = watch('bgGradient');
+  const isActiveValue = watch('isActive');
 
   if (!isOpen) return null;
 
@@ -86,17 +85,38 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-        formik.setFieldValue('image', dataUrl);
+        setValue('image', dataUrl, { shouldValidate: true });
 
         // Automatically analyze image colors and generate background gradient
         setAnalyzingGradient(true);
         const autoGradient = await extractGradientFromImage(dataUrl);
-        formik.setFieldValue('bgGradient', autoGradient);
+        setValue('bgGradient', autoGradient);
         setAnalyzingGradient(false);
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+  };
+
+  const onSubmit = (values) => {
+    const featureList = (values.features || '')
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+
+    onSave({
+      tagline: (values.tagline || '').trim(),
+      title: values.title.trim(),
+      description: (values.description || '').trim(),
+      ctaText: (values.ctaText || '').trim() || 'Explore Catalog',
+      link: values.link.trim() || '/shop',
+      features: featureList,
+      image: values.image,
+      bgGradient: values.bgGradient,
+      order: Number(values.order) || 0,
+      isActive: values.isActive,
+    });
+    onClose();
   };
 
   return createPortal(
@@ -126,7 +146,7 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={formik.handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 overflow-y-auto flex-1">
           {/* Tagline & Order */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
@@ -135,11 +155,8 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
               </label>
               <input
                 type="text"
-                name="tagline"
                 placeholder="e.g. CURATED ATELIER EDIT • SS26"
-                value={formik.values.tagline}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                {...register('tagline')}
                 className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
               />
             </div>
@@ -150,15 +167,12 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
               </label>
               <input
                 type="number"
-                name="order"
                 min="0"
-                value={formik.values.order}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                {...register('order')}
                 className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
               />
-              {formik.touched.order && formik.errors.order && (
-                <p className="text-rose-500 text-[11px] mt-1">{formik.errors.order}</p>
+              {errors.order && (
+                <p className="text-rose-500 text-[11px] mt-1">{errors.order.message}</p>
               )}
             </div>
           </div>
@@ -170,20 +184,17 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
             </label>
             <input
               type="text"
-              name="title"
               placeholder="e.g. Everything You Need, All in One Place"
-              value={formik.values.title}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              {...register('title')}
               className={`w-full px-3.5 py-2 text-xs border rounded-lg text-slate-900 focus:outline-none focus:ring-2 transition ${
-                formik.touched.title && formik.errors.title
+                errors.title
                   ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                   : 'border-slate-200 focus:ring-slate-900/10 focus:border-slate-900'
               }`}
             />
-            {formik.touched.title && formik.errors.title && (
+            {errors.title && (
               <p className="text-rose-500 text-[11px] mt-1 flex items-center gap-1">
-                <FiAlertCircle className="w-3 h-3" /> {formik.errors.title}
+                <FiAlertCircle className="w-3 h-3" /> {errors.title.message}
               </p>
             )}
           </div>
@@ -195,11 +206,8 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
             </label>
             <textarea
               rows={2}
-              name="description"
               placeholder="Discover millions of products from verified brand ateliers and trusted studios..."
-              value={formik.values.description}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              {...register('description')}
               className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition resize-none"
             />
           </div>
@@ -212,11 +220,8 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
               </label>
               <input
                 type="text"
-                name="ctaText"
                 placeholder="e.g. Explore Catalog, Shop Now"
-                value={formik.values.ctaText}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                {...register('ctaText')}
                 className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
               />
             </div>
@@ -227,20 +232,17 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
               </label>
               <input
                 type="text"
-                name="link"
                 placeholder="e.g. /shop, /category/fashion, /product/..."
-                value={formik.values.link}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                {...register('link')}
                 className={`w-full px-3.5 py-2 text-xs border rounded-lg text-slate-900 focus:outline-none focus:ring-2 transition ${
-                  formik.touched.link && formik.errors.link
+                  errors.link
                     ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                     : 'border-slate-200 focus:ring-slate-900/10 focus:border-slate-900'
-                }`}
-              />
-              {formik.touched.link && formik.errors.link && (
+              }`}
+            />
+              {errors.link && (
                 <p className="text-rose-500 text-[11px] mt-1 flex items-center gap-1">
-                  <FiAlertCircle className="w-3 h-3" /> {formik.errors.link}
+                  <FiAlertCircle className="w-3 h-3" /> {errors.link.message}
                 </p>
               )}
             </div>
@@ -253,11 +255,8 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
             </label>
             <input
               type="text"
-              name="features"
               placeholder="Global Freight, Escrow Protection, 30-Day Returns"
-              value={formik.values.features}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              {...register('features')}
               className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
             />
           </div>
@@ -278,11 +277,11 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
               }}
             />
 
-            {formik.values.image ? (
+            {imageValue ? (
               <div className="relative border-2 border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-20 h-16 rounded-lg overflow-hidden border border-slate-200 bg-white shrink-0">
-                    <img src={formik.values.image} alt="Slider preview" className="w-full h-full object-cover" />
+                    <img src={imageValue} alt="Slider preview" className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-slate-800">Image uploaded</p>
@@ -303,8 +302,8 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
                   <button
                     type="button"
                     onClick={() => {
-                      formik.setFieldValue('image', '');
-                      formik.setFieldValue('bgGradient', 'linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.7) 100%)');
+                      setValue('image', '', { shouldValidate: true });
+                      setValue('bgGradient', 'linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.7) 100%)');
                     }}
                     className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                     title="Remove image"
@@ -332,7 +331,7 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
                 className={`w-full p-6 border-2 border-dashed rounded-xl cursor-pointer transition text-center flex flex-col items-center justify-center gap-2 select-none ${
                   isDragging
                     ? 'border-blue-600 bg-blue-50/50'
-                    : formik.touched.image && formik.errors.image
+                    : errors.image
                     ? 'border-rose-300 bg-rose-50/20'
                     : 'border-slate-300 bg-slate-50/60 hover:bg-slate-50 hover:border-slate-400'
                 }`}
@@ -350,9 +349,9 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
                 </div>
               </div>
             )}
-            {formik.touched.image && formik.errors.image && (
+            {errors.image && (
               <p className="text-rose-500 text-[11px] mt-1 flex items-center gap-1">
-                <FiAlertCircle className="w-3 h-3" /> {formik.errors.image}
+                <FiAlertCircle className="w-3 h-3" /> {errors.image.message}
               </p>
             )}
           </div>
@@ -373,7 +372,7 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
 
             <div
               className="w-full h-14 rounded-xl border border-slate-200 flex items-center justify-between px-4 transition-all"
-              style={{ background: formik.values.bgGradient }}
+              style={{ background: bgGradientValue }}
             >
               <span className="text-xs font-bold text-slate-800 drop-shadow-sm">
                 Live Slide Backdrop Preview
@@ -394,14 +393,14 @@ export default function SliderModal({ isOpen, onClose, onSave, slider }) {
             </div>
             <button
               type="button"
-              onClick={() => formik.setFieldValue('isActive', !formik.values.isActive)}
+              onClick={() => setValue('isActive', !isActiveValue)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
-                formik.values.isActive ? 'bg-emerald-500' : 'bg-slate-200'
+                isActiveValue ? 'bg-emerald-500' : 'bg-slate-200'
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  formik.values.isActive ? 'translate-x-6' : 'translate-x-1'
+                  isActiveValue ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>

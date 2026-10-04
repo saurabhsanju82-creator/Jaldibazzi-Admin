@@ -16,6 +16,7 @@ import CouponManagement from './components/coupons/CouponManagement';
 import CategoryManagement from './components/categories/CategoryManagement';
 import SliderManagement from './components/sliders/SliderManagement';
 import HomeShowcaseSettings from './components/settings/HomeShowcaseSettings';
+import SystemStatusSettings from './components/settings/SystemStatusSettings';
 import ScrollToTop from './components/common/ScrollToTop';
 
 import { checkAdminAuth, setUnauthenticated } from './store/slices/authSlice';
@@ -28,20 +29,35 @@ import { fetchCoupons } from './store/slices/couponsSlice';
 import { fetchCategories } from './store/slices/categoriesSlice';
 import { fetchSliders } from './store/slices/slidersSlice';
 
+import GlobalApiLoader from './components/common/GlobalApiLoader';
+import { startLoading, stopLoading } from './store/slices/loadingSlice';
+
 export default function App() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
 
-  // Check admin session validation on initial load
+  // Check admin session validation & global API loader listeners on initial load
   useEffect(() => {
     dispatch(checkAdminAuth());
+
+    // Global API loader event listeners
+    const handleLoadingStart = () => dispatch(startLoading());
+    const handleLoadingStop = () => dispatch(stopLoading());
+
+    window.addEventListener('api:loading:start', handleLoadingStart);
+    window.addEventListener('api:loading:stop', handleLoadingStop);
 
     // Listen for unauthorized session expiration events
     const handleUnauthorized = () => {
       dispatch(setUnauthenticated());
     };
     window.addEventListener('auth:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+
+    return () => {
+      window.removeEventListener('api:loading:start', handleLoadingStart);
+      window.removeEventListener('api:loading:stop', handleLoadingStop);
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
   }, [dispatch]);
 
   // Fetch telemetry and platform records when authenticated
@@ -60,6 +76,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <GlobalApiLoader />
       <ScrollToTop />
       <Routes>
         {/* Public Login Route */}
@@ -190,6 +207,16 @@ export default function App() {
             <ProtectedRoute>
               <AdminLayout>
                 <PlatformReports />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/system-status"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <SystemStatusSettings />
               </AdminLayout>
             </ProtectedRoute>
           }

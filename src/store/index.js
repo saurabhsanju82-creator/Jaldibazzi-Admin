@@ -8,6 +8,7 @@ import payoutsReducer from './slices/payoutsSlice';
 import couponsReducer from './slices/couponsSlice';
 import categoriesReducer from './slices/categoriesSlice';
 import slidersReducer from './slices/slidersSlice';
+import loadingReducer from './slices/loadingSlice';
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +21,7 @@ export const store = configureStore({
     coupons: couponsReducer,
     categories: categoriesReducer,
     sliders: slidersReducer,
+    loading: loadingReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

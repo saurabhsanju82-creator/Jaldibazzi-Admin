@@ -55,7 +55,14 @@ export const savePlatformDb = (db) => {
   }
 };
 
-const delay = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms = 150) =>
+  new Promise((resolve) => {
+    window.dispatchEvent(new Event('api:loading:start'));
+    setTimeout(() => {
+      window.dispatchEvent(new Event('api:loading:stop'));
+      resolve();
+    }, ms);
+  });
 
 // Auth API
 export const authApi = {

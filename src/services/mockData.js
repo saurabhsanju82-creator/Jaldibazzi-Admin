@@ -410,12 +410,18 @@ export const INITIAL_CUSTOMERS = [
 
 export const INITIAL_SALES_METRICS = {
   monthly: [
+    { month: 'Jan', sales: 34500, orders: 310 },
+    { month: 'Feb', sales: 41200, orders: 360 },
+    { month: 'Mar', sales: 45800, orders: 395 },
     { month: 'Apr', sales: 48500, orders: 420 },
     { month: 'May', sales: 62100, orders: 530 },
     { month: 'Jun', sales: 78900, orders: 680 },
     { month: 'Jul', sales: 91400, orders: 810 },
     { month: 'Aug', sales: 114200, orders: 995 },
-    { month: 'Sep', sales: 132600, orders: 1140 }
+    { month: 'Sep', sales: 132600, orders: 1140 },
+    { month: 'Oct', sales: 148500, orders: 1260 },
+    { month: 'Nov', sales: 165200, orders: 1410 },
+    { month: 'Dec', sales: 182400, orders: 1580 }
   ]
 };
 

@@ -1,39 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
-import { FiX, FiFolder, FiUploadCloud, FiImage, FiCheck, FiTrash2, FiAlertCircle } from 'react-icons/fi';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { FiX, FiFolder, FiUploadCloud, FiCheck, FiTrash2, FiAlertCircle } from 'react-icons/fi';
 
-const categorySchema = Yup.object({
-  name: Yup.string().trim().required('Category name is required'),
-  description: Yup.string().trim().optional(),
-  image: Yup.string().optional(),
-  isActive: Yup.boolean().default(true),
+const categorySchema = z.object({
+  name: z.string().trim().min(1, 'Category name is required'),
+  description: z.string().trim().optional().default(''),
+  image: z.string().optional().default(''),
+  isActive: z.boolean().default(true),
 });
 
 export default function CategoryModal({ isOpen, onClose, onSave, category }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  const formik = useFormik({
-    initialValues: {
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(categorySchema),
+    defaultValues: {
       name: category?.name || '',
       description: category?.description || '',
       image: category?.image || '',
       isActive: category?.isActive !== undefined ? category.isActive : true,
     },
-    enableReinitialize: true,
-    validationSchema: categorySchema,
-    onSubmit: (values) => {
-      onSave({
-        name: values.name.trim(),
-        description: (values.description || '').trim(),
-        image: (values.image || '').trim(),
-        isActive: values.isActive,
-      });
-      onClose();
-    },
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      reset({
+        name: category?.name || '',
+        description: category?.description || '',
+        image: category?.image || '',
+        isActive: category?.isActive !== undefined ? category.isActive : true,
+      });
+    }
+  }, [category, isOpen, reset]);
+
+  const imageValue = watch('image');
+  const isActiveValue = watch('isActive');
 
   if (!isOpen) return null;
 
@@ -58,11 +70,21 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
-        formik.setFieldValue('image', canvas.toDataURL('image/jpeg', 0.88));
+        setValue('image', canvas.toDataURL('image/jpeg', 0.88));
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+  };
+
+  const onSubmit = (values) => {
+    onSave({
+      name: values.name.trim(),
+      description: (values.description || '').trim(),
+      image: (values.image || '').trim(),
+      isActive: values.isActive,
+    });
+    onClose();
   };
 
   return createPortal(
@@ -94,7 +116,7 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
         </div>
 
         {/* Form Body */}
-        <form onSubmit={formik.handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
           {/* Name Field */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -102,20 +124,17 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
             </label>
             <input
               type="text"
-              name="name"
               placeholder="e.g. Fashion, Electronics, Home Decor..."
-              value={formik.values.name}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              {...register('name')}
               className={`w-full px-3.5 py-2 text-xs border rounded-lg text-slate-900 focus:outline-none focus:ring-2 transition ${
-                formik.touched.name && formik.errors.name
+                errors.name
                   ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                   : 'border-slate-200 focus:ring-slate-900/10 focus:border-slate-900'
               }`}
             />
-            {formik.touched.name && formik.errors.name && (
+            {errors.name && (
               <p className="text-rose-500 text-[11px] mt-1 flex items-center gap-1">
-                <FiAlertCircle className="w-3 h-3" /> {formik.errors.name}
+                <FiAlertCircle className="w-3 h-3" /> {errors.name.message}
               </p>
             )}
           </div>
@@ -127,11 +146,8 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
             </label>
             <textarea
               rows={2}
-              name="description"
               placeholder="Brief description of products in this category..."
-              value={formik.values.description}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              {...register('description')}
               className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition resize-none"
             />
           </div>
@@ -151,11 +167,11 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
               }}
             />
 
-            {formik.values.image ? (
+            {imageValue ? (
               <div className="relative border-2 border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 bg-white shrink-0">
-                    <img src={formik.values.image} alt="Category preview" className="w-full h-full object-cover" />
+                    <img src={imageValue} alt="Category preview" className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-slate-800">Image uploaded</p>
@@ -173,7 +189,7 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => formik.setFieldValue('image', '')}
+                    onClick={() => setValue('image', '')}
                     className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                     title="Remove image"
                   >
@@ -228,14 +244,14 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
             </div>
             <button
               type="button"
-              onClick={() => formik.setFieldValue('isActive', !formik.values.isActive)}
+              onClick={() => setValue('isActive', !isActiveValue)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
-                formik.values.isActive ? 'bg-emerald-500' : 'bg-slate-200'
+                isActiveValue ? 'bg-emerald-500' : 'bg-slate-200'
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  formik.values.isActive ? 'translate-x-6' : 'translate-x-1'
+                  isActiveValue ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>

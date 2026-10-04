@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAdminMetrics } from '../../store/slices/analyticsSlice';
@@ -14,8 +14,26 @@ import {
   FiAlertCircle,
   FiArrowUpRight,
   FiCheckCircle,
-  FiChevronRight
+  FiChevronRight,
+  FiBarChart2,
+  FiTrendingUp
 } from 'react-icons/fi';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
+
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
 
 export default function AdminDashboard({ onNavigateTab }) {
   const navigate = useNavigate();
@@ -24,6 +42,67 @@ export default function AdminDashboard({ onNavigateTab }) {
   const { items: vendors } = useSelector((state) => state.vendors);
   const { items: orders } = useSelector((state) => state.orders);
   const { items: products } = useSelector((state) => state.products);
+
+  const [chartType, setChartType] = useState('bar'); // 'bar' | 'line'
+
+  // Extract available years dynamically from real orders (fallback to current year)
+  const availableYears = useMemo(() => {
+    const years = new Set([new Date().getFullYear().toString()]);
+    orders.forEach((o) => {
+      if (o.createdAt) {
+        const y = new Date(o.createdAt).getFullYear();
+        if (!isNaN(y)) years.add(y.toString());
+      }
+    });
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [orders]);
+
+  const [selectedYear, setSelectedYear] = useState(
+    availableYears[0] || new Date().getFullYear().toString()
+  );
+
+  // Compute real dynamic monthly sales and order count from loaded orders
+  const currentYearData = useMemo(() => {
+    // 12 months bucket: Jan to Dec
+    const monthlyBuckets = MONTH_NAMES.map((name) => ({
+      month: name,
+      sales: 0,
+      orders: 0,
+    }));
+
+    orders.forEach((o) => {
+      if (o.status === 'CANCELLED') return;
+      if (!o.createdAt) return;
+
+      const date = new Date(o.createdAt);
+      if (isNaN(date.getTime())) return;
+
+      const year = date.getFullYear().toString();
+      if (year === selectedYear) {
+        const monthIndex = date.getMonth(); // 0 to 11
+        const amount = Number(o.totalAmount || o.total || 0);
+        if (monthlyBuckets[monthIndex]) {
+          monthlyBuckets[monthIndex].sales += amount;
+          monthlyBuckets[monthIndex].orders += 1;
+        }
+      }
+    });
+
+    return monthlyBuckets;
+  }, [orders, selectedYear]);
+
+  const totalYearSales = useMemo(() => {
+    return currentYearData.reduce((sum, m) => sum + m.sales, 0);
+  }, [currentYearData]);
+
+  const totalYearOrders = useMemo(() => {
+    return currentYearData.reduce((sum, m) => sum + m.orders, 0);
+  }, [currentYearData]);
+
+  const maxSales = useMemo(() => {
+    const highest = Math.max(...currentYearData.map((d) => d.sales), 0);
+    return highest > 0 ? highest : 10000;
+  }, [currentYearData]);
 
   useEffect(() => {
     dispatch(fetchAdminMetrics());
@@ -57,8 +136,18 @@ export default function AdminDashboard({ onNavigateTab }) {
             Real-time aggregate performance across all connected merchant storefronts.
           </p>
         </div>
-        <div className="text-xs text-slate-400 font-mono">
-          Last updated: Just now
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/system-status')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold transition cursor-pointer"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <span>Live Services Monitor</span>
+          </button>
+          <div className="text-xs text-slate-400 font-mono hidden sm:block">
+            Last updated: Just now
+          </div>
         </div>
       </div>
 
@@ -150,32 +239,169 @@ export default function AdminDashboard({ onNavigateTab }) {
       )}
 
       {/* 3.1 Sales Trends & Business Performance */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-slate-900">Monthly Sales Volume Trend</h3>
-          <span className="text-xs text-slate-500 font-mono">Platform Gross Volume (INR ₹)</span>
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">Monthly Sales Volume Trend</h3>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">
+              Platform Gross Volume: {selectedYear} &bull; Jan to Dec ({chartType.toUpperCase()} Graph) &bull; Total: ₹{totalYearSales.toLocaleString()} ({totalYearOrders} orders)
+            </p>
+          </div>
+
+          {/* Controls: Chart Type Toggle & Year Dropdown */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Year Selector Dropdown */}
+            <div className="relative">
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
+              >
+                {availableYears.map((yr) => (
+                  <option key={yr} value={yr}>
+                    Year {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Bar / Line Graph Toggle */}
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setChartType('bar')}
+                className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
+                  chartType === 'bar'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <FiBarChart2 className="w-3.5 h-3.5" />
+                <span>Bar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('line')}
+                className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
+                  chartType === 'line'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <FiTrendingUp className="w-3.5 h-3.5" />
+                <span>Line</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Minimalist Bar Visualization */}
-        <div className="pt-6 pb-2">
-          <div className="grid grid-cols-6 gap-4 items-end h-44 border-b border-slate-200">
-            {(summary?.monthlySales || []).map((m) => {
-              const max = 150000;
-              const heightPercent = Math.round((m.sales / max) * 100);
-              return (
-                <div key={m.month} className="flex flex-col items-center h-full justify-end group">
-                  <div className="text-[11px] font-mono text-slate-500 opacity-0 group-hover:opacity-100 transition mb-1.5">
-                    ₹{(m.sales / 1000).toFixed(1)}k
-                  </div>
-                  <div
-                    style={{ height: `${heightPercent}%` }}
-                    className="w-full max-w-[48px] bg-slate-900 rounded-t group-hover:bg-emerald-600 transition-all duration-200"
-                  ></div>
-                  <div className="text-xs font-medium text-slate-600 mt-2">{m.month}</div>
-                </div>
-              );
-            })}
-          </div>
+        {/* Chart Viewport powered by Recharts */}
+        <div className="pt-4 pb-1 h-72 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'line' ? (
+              <AreaChart
+                data={currentYearData}
+                margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="salesAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }}
+                  dy={6}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }}
+                  tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  cursor={{ stroke: '#059669', strokeWidth: 1.5, strokeDasharray: '4 4' }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-slate-900 text-white px-3 py-2 rounded-xl shadow-xl border border-slate-800 text-xs space-y-0.5">
+                          <p className="font-semibold text-slate-300">{label} {selectedYear}</p>
+                          <p className="font-bold text-emerald-400 text-sm">
+                            ₹{data.sales.toLocaleString()}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {data.orders} order{data.orders === 1 ? '' : 's'} recorded
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="#059669"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#salesAreaGradient)"
+                  activeDot={{ r: 6, fill: '#059669', stroke: '#ffffff', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            ) : (
+              <BarChart
+                data={currentYearData}
+                margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }}
+                  dy={6}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' }}
+                  tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(241, 245, 249, 0.6)' }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-slate-900 text-white px-3 py-2 rounded-xl shadow-xl border border-slate-800 text-xs space-y-0.5">
+                          <p className="font-semibold text-slate-300">{label} {selectedYear}</p>
+                          <p className="font-bold text-emerald-400 text-sm">
+                            ₹{data.sales.toLocaleString()}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {data.orders} order{data.orders === 1 ? '' : 's'} recorded
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar
+                  dataKey="sales"
+                  fill="#0f172a"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={40}
+                  className="hover:fill-emerald-600 transition-colors"
+                />
+              </BarChart>
+            )}
+          </ResponsiveContainer>
         </div>
       </div>
 
