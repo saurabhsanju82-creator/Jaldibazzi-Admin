@@ -14,12 +14,17 @@ import {
   FiWifi
 } from 'react-icons/fi';
 
+const STOREFRONT_URL = import.meta.env.VITE_FRONTEND_URL || import.meta.env.VITE_STOREFRONT_URL || 'http://localhost:3000';
+const VENDOR_URL = import.meta.env.VITE_VENDOR_URL || 'http://localhost:5174';
+const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : '') || 'http://localhost:5000';
+const BACKEND_URL = `${BACKEND_BASE.replace(/\/+$/, '')}/health`;
+
 const DEFAULT_TARGETS = [
   {
     id: 'storefront',
     name: 'Customer Storefront',
     type: 'Next.js App',
-    defaultUrl: 'http://localhost:3000',
+    defaultUrl: STOREFRONT_URL,
     description: 'Public eCommerce customer portal, catalogue, and checkout engine',
     icon: FiShoppingBag,
     color: 'emerald',
@@ -28,7 +33,7 @@ const DEFAULT_TARGETS = [
     id: 'vendor',
     name: 'Merchant / Vendor Portal',
     type: 'Vite React App',
-    defaultUrl: 'http://localhost:5174',
+    defaultUrl: VENDOR_URL,
     description: 'Merchant dashboard for product catalog, inventory, and order fulfillment',
     icon: FiGlobe,
     color: 'blue',
@@ -37,7 +42,7 @@ const DEFAULT_TARGETS = [
     id: 'backend',
     name: 'Backend Core API',
     type: 'Express REST API',
-    defaultUrl: 'http://localhost:5000/health',
+    defaultUrl: BACKEND_URL,
     description: 'Central database, authentication, vendor management, and payment processor',
     icon: FiServer,
     color: 'purple',
@@ -53,9 +58,9 @@ export default function SystemStatusSettings() {
       // ignore
     }
     return {
-      storefront: 'http://localhost:3000',
-      vendor: 'http://localhost:5174',
-      backend: 'http://localhost:5000/health',
+      storefront: STOREFRONT_URL,
+      vendor: VENDOR_URL,
+      backend: BACKEND_URL,
     };
   });
 
