@@ -1118,6 +1118,23 @@ export const reportsApi = {
   },
 };
 
+// Resend Emails & Webhooks API
+export const emailsApi = {
+  getEmails: async (params = {}) => {
+    const response = await axiosClient.get('/emails', { params });
+    return response.data?.data || { emails: [], stats: {}, pagination: {} };
+  },
+  getEmailById: async (id) => {
+    const response = await axiosClient.get(`/emails/${id}`);
+    return response.data?.data;
+  },
+  sendTestEmail: async (to) => {
+    const response = await axiosClient.post('/emails/send-test', { to });
+    return response.data?.data;
+  },
+};
+
+
 
 
 
