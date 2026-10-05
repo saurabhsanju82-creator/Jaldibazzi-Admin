@@ -11,7 +11,6 @@ import {
   FiShield,
   FiMenu,
   FiX,
-  FiDollarSign,
   FiTag,
   FiFolder,
   FiSliders,
@@ -30,38 +29,21 @@ export default function AdminLayout({ children }) {
 
   const { user } = useSelector((state) => state.auth);
   const { items: vendors } = useSelector((state) => state.vendors || { items: [] });
-  const { items: payouts } = useSelector((state) => state.payouts || { items: [] });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
 
   const pendingApprovalsCount = (vendors || []).filter((v) => v.status === 'PENDING').length;
-  const pendingPayoutsCount = (payouts || []).filter((p) => p.status === 'PENDING').length;
   const badgeColor = 'bg-amber-500 text-slate-950 font-bold';
 
   const navItems = [
     { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: FiGrid },
     {
-      id: 'manage-vendor',
-      label: 'Manage Vendor',
+      id: 'vendors',
+      path: '/vendors',
+      label: 'Vendors',
       icon: FiBriefcase,
-      children: [
-        {
-          id: 'vendors',
-          path: '/vendors',
-          label: 'Vendors',
-          icon: FiUsers,
-          badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
-          badgeColor,
-        },
-        {
-          id: 'payouts',
-          path: '/payouts',
-          label: 'Payouts',
-          icon: FiDollarSign,
-          badge: pendingPayoutsCount > 0 ? pendingPayoutsCount : null,
-          badgeColor,
-        },
-      ],
+      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
+      badgeColor,
     },
     {
       id: 'manage-products',

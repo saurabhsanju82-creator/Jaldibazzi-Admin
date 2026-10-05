@@ -104,7 +104,6 @@ export default function AdminLogin() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="admin@jaldibaazi.com"
                 {...register('email')}
                 className={`w-full pl-10 pr-4 py-2.5 bg-slate-50/70 border rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 transition ${
                   errors.email

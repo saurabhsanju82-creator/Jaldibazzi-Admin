@@ -13,9 +13,7 @@ import {
   FiUsers,
   FiDollarSign,
   FiPackage,
-  FiGrid,
-  FiCheckCircle,
-  FiAlertCircle
+  FiGrid
 } from 'react-icons/fi';
 import {
   ResponsiveContainer,
@@ -51,7 +49,6 @@ export default function AdminDashboard({ onNavigateTab }) {
   const { summary, loading } = useSelector((state) => state.analytics);
   const { user } = useSelector((state) => state.auth);
   const { dateFormat } = useSelector((state) => state.settings || { dateFormat: 'DD/MM/YYYY' });
-  const { items: localPayouts } = useSelector((state) => state.payouts || { items: [] });
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [chartType, setChartType] = useState('bar'); // 'bar' | 'line'
@@ -93,16 +90,6 @@ export default function AdminDashboard({ onNavigateTab }) {
   // Loading flag for skeletons
   const isLoading = loading || !summary;
 
-  // Payout computations with fallback to local payouts if available
-  const donePayouts = localPayouts.filter((p) => p.status === 'SETTLED');
-  const pendingPayouts = localPayouts.filter((p) => p.status === 'PENDING');
-
-  const payoutsDoneCount = summary?.payoutsDoneCount ?? donePayouts.length;
-  const payoutsDoneAmount = summary?.payoutsDoneAmount ?? donePayouts.reduce((sum, p) => sum + (p.netAmount || 0), 0);
-
-  const payoutsPendingCount = summary?.payoutsPendingCount ?? pendingPayouts.length;
-  const payoutsPendingAmount = summary?.payoutsPendingAmount ?? pendingPayouts.reduce((sum, p) => sum + (p.netAmount || 0), 0);
-
   const recentPayments = summary?.recentPayments || [];
 
   return (
@@ -126,9 +113,9 @@ export default function AdminDashboard({ onNavigateTab }) {
         </div>
       </div>
 
-      {/* 2. Three cards per row (3 Columns) with Skeleton support */}
+      {/* 2. KPI Cards */}
       <div className="space-y-6">
-        {/* ROW 1: Total sales | Total payouts done & amount | Payouts pending and amount */}
+        {/* ROW 1: Total Sales | Total Orders | Total Payments */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1: Total Sales */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
@@ -149,90 +136,6 @@ export default function AdminDashboard({ onNavigateTab }) {
               <div className="mt-1 text-xs text-slate-400">
                 Gross platform merchandising value
               </div>
-            </div>
-          </div>
-
-          {/* Card 2: Total Payouts Done & Amount */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Payouts Done</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <FiCheckCircle className="text-base" />
-              </div>
-            </div>
-            <div className="mt-3">
-              {isLoading ? (
-                <div className="space-y-1.5">
-                  <Skeleton className="h-8 w-32" />
-                  <Skeleton className="h-4 w-44" />
-                </div>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {payoutsDoneCount} Completed
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-blue-600">
-                    ₹{payoutsDoneAmount.toLocaleString()} settled to vendors
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Card 3: Payouts Pending and Amount */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Payouts Pending</span>
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                <FiAlertCircle className="text-base" />
-              </div>
-            </div>
-            <div className="mt-3">
-              {isLoading ? (
-                <div className="space-y-1.5">
-                  <Skeleton className="h-8 w-28" />
-                  <Skeleton className="h-4 w-48" />
-                </div>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {payoutsPendingCount} Pending
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-amber-600">
-                    ₹{payoutsPendingAmount.toLocaleString()} awaiting settlement
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ROW 2: Total vendor and active vendor | Total orders | Total payments and amount */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Total Vendor and Active Vendor */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Vendors Overview</span>
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <FiUsers className="text-base" />
-              </div>
-            </div>
-            <div className="mt-3">
-              {isLoading ? (
-                <div className="space-y-1.5">
-                  <Skeleton className="h-8 w-36" />
-                  <Skeleton className="h-4 w-44" />
-                </div>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {summary?.totalVendors || 0} Total Vendors
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-emerald-600">
-                    {summary?.activeVendors || 0} active merchants on platform
-                  </div>
-                </>
-              )}
             </div>
           </div>
 
@@ -286,9 +189,36 @@ export default function AdminDashboard({ onNavigateTab }) {
           </div>
         </div>
 
-        {/* ROW 3: Total customers | Total products | Total categories */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Total Customers */}
+        {/* ROW 2: Total vendor and active vendor | Total customers | Total products | Total categories */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Card 1: Total Vendor and Active Vendor */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Vendors Overview</span>
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <FiUsers className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <div className="space-y-1.5">
+                  <Skeleton className="h-8 w-36" />
+                  <Skeleton className="h-4 w-44" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-slate-900">
+                    {summary?.totalVendors || 0} Total Vendors
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-emerald-600">
+                    {summary?.activeVendors || 0} active merchants on platform
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Total Customers */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Customers</span>
@@ -310,7 +240,7 @@ export default function AdminDashboard({ onNavigateTab }) {
             </div>
           </div>
 
-          {/* Card 2: Total Products */}
+          {/* Card 3: Total Products */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Products</span>
@@ -332,7 +262,7 @@ export default function AdminDashboard({ onNavigateTab }) {
             </div>
           </div>
 
-          {/* Card 3: Total Categories */}
+          {/* Card 4: Total Categories */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Categories</span>

@@ -11,7 +11,6 @@ import VendorPerformance from './components/performance/VendorPerformance';
 import ProductMonitoring from './components/products/ProductMonitoring';
 import PlatformOrders from './components/orders/PlatformOrders';
 import PlatformReports from './components/reports/PlatformReports';
-import VendorPayouts from './components/payouts/VendorPayouts';
 import CouponManagement from './components/coupons/CouponManagement';
 import CategoryManagement from './components/categories/CategoryManagement';
 import StoreSettings from './components/settings/StoreSettings';
@@ -26,7 +25,6 @@ import { fetchVendors } from './store/slices/vendorsSlice';
 import { fetchAllOrders } from './store/slices/ordersSlice';
 import { fetchAllProducts } from './store/slices/productsSlice';
 import { fetchAdminMetrics } from './store/slices/analyticsSlice';
-import { fetchPayouts } from './store/slices/payoutsSlice';
 import { fetchCoupons } from './store/slices/couponsSlice';
 import { fetchCategories } from './store/slices/categoriesSlice';
 import { fetchSliders } from './store/slices/slidersSlice';
@@ -70,7 +68,6 @@ export default function App() {
       dispatch(fetchAllOrders());
       dispatch(fetchAllProducts());
       dispatch(fetchAdminMetrics());
-      dispatch(fetchPayouts());
       dispatch(fetchCoupons());
       dispatch(fetchCategories());
       dispatch(fetchSliders());
@@ -158,16 +155,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/payouts"
-          element={
-            <ProtectedRoute>
-              <AdminLayout>
-                <VendorPayouts />
-              </AdminLayout>
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/payouts" element={<Navigate to="/dashboard" replace />} />
         <Route
           path="/performance"
           element={
