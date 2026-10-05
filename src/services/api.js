@@ -1134,6 +1134,122 @@ export const emailsApi = {
   },
 };
 
+// Pincode Availability API
+export const pincodesApi = {
+  getPincodes: async (params = {}) => {
+    try {
+      const response = await axiosClient.get('/pincodes', { params });
+      return response.data?.data || { pincodes: [], total: 0, page: 1, pages: 1 };
+    } catch (err) {
+      console.warn('Backend /pincodes request failed, using local storage fallback:', err.message);
+      const db = getPlatformDb();
+      let list = Array.isArray(db.pincodes) ? [...db.pincodes] : [
+        { _id: 'pin-1', name: 'South Delhi', pincode: '110001', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-2', name: 'Indiranagar Bangalore', pincode: '560038', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-3', name: 'Bandra West Mumbai', pincode: '400050', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-4', name: 'Connaught Place New Delhi', pincode: '110002', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-5', name: 'Koramangala Bangalore', pincode: '560034', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-6', name: 'Andheri West Mumbai', pincode: '400053', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-7', name: 'Salt Lake Kolkata', pincode: '700091', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-8', name: 'Hitech City Hyderabad', pincode: '500081', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-9', name: 'T Nagar Chennai', pincode: '600017', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-10', name: 'Civil Lines Jaipur', pincode: '302006', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-11', name: 'Viman Nagar Pune', pincode: '411014', isActive: true, createdAt: new Date().toISOString() },
+        { _id: 'pin-12', name: 'Navrangpura Ahmedabad', pincode: '380009', isActive: true, createdAt: new Date().toISOString() },
+      ];
+      if (!db.pincodes) {
+        db.pincodes = list;
+        savePlatformDb(db);
+      }
+      if (params.search) {
+        const s = String(params.search).toLowerCase().trim();
+        list = list.filter((p) => (p.pincode && p.pincode.toLowerCase().includes(s)) || (p.name && p.name.toLowerCase().includes(s)));
+      }
+      const page = Math.max(1, parseInt(params.page, 10) || 1);
+      const limit = Math.max(1, parseInt(params.limit, 10) || 10);
+      const total = list.length;
+      const pages = Math.ceil(total / limit) || 1;
+      const start = (page - 1) * limit;
+      const pincodes = list.slice(start, start + limit);
+      return { pincodes, total, page, pages, limit };
+    }
+  },
+  createPincode: async (data) => {
+    try {
+      const response = await axiosClient.post('/pincodes', data);
+      return response.data?.data;
+    } catch (err) {
+      const db = getPlatformDb();
+      if (!Array.isArray(db.pincodes)) db.pincodes = [];
+      const newPin = {
+        _id: `pin-${Date.now()}`,
+        name: data.name,
+        pincode: data.pincode,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+      db.pincodes.unshift(newPin);
+      savePlatformDb(db);
+      return newPin;
+    }
+  },
+  bulkUploadPincodes: async (pincodes) => {
+    try {
+      const response = await axiosClient.post('/pincodes/bulk', { pincodes });
+      return response.data;
+    } catch (err) {
+      const db = getPlatformDb();
+      if (!Array.isArray(db.pincodes)) db.pincodes = [];
+      let added = 0;
+      for (const item of pincodes) {
+        if (!db.pincodes.find((p) => p.pincode === item.pincode)) {
+          db.pincodes.unshift({
+            _id: `pin-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            name: item.name,
+            pincode: item.pincode,
+            isActive: true,
+            createdAt: new Date().toISOString()
+          });
+          added++;
+        }
+      }
+      savePlatformDb(db);
+      return { success: true, count: added, duplicates: pincodes.length - added };
+    }
+  },
+  togglePincode: async (id) => {
+    try {
+      const response = await axiosClient.put(`/pincodes/${id}/toggle`);
+      return response.data?.data;
+    } catch (err) {
+      const db = getPlatformDb();
+      if (Array.isArray(db.pincodes)) {
+        const item = db.pincodes.find((p) => p._id === id || p.id === id);
+        if (item) {
+          item.isActive = !item.isActive;
+          savePlatformDb(db);
+          return item;
+        }
+      }
+      return null;
+    }
+  },
+  deletePincode: async (id) => {
+    try {
+      const response = await axiosClient.delete(`/pincodes/${id}`);
+      return response.data;
+    } catch (err) {
+      const db = getPlatformDb();
+      if (Array.isArray(db.pincodes)) {
+        db.pincodes = db.pincodes.filter((p) => p._id !== id && p.id !== id);
+        savePlatformDb(db);
+      }
+      return { success: true };
+    }
+  },
+};
+
+
 
 
 

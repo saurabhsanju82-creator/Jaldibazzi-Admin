@@ -30,24 +30,101 @@ export function usePagination(items, resetKey) {
   return { pageItems, page: current, totalPages, setPage, total: items.length, pageSize, dateFormat };
 }
 
-export default function Pagination({ page, totalPages, setPage, total, pageSize }) {
+export default function Pagination({
+  page = 1,
+  totalPages = 1,
+  setPage,
+  total = 0,
+  pageSize = 10,
+  onPageSizeChange,
+  pageSizeOptions = [10, 20, 50, 100],
+}) {
   if (total === 0) return null;
-  const from = (page - 1) * pageSize + 1;
-  const to = Math.min(page * pageSize, total);
-  const btn = 'px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-100';
+  const safeTotal = Math.max(0, total);
+  const safeTotalPages = Math.max(1, totalPages);
+  const from = Math.min((page - 1) * pageSize + 1, safeTotal);
+  const to = Math.min(page * pageSize, safeTotal);
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    if (safeTotalPages <= 7) {
+      return Array.from({ length: safeTotalPages }, (_, i) => i + 1);
+    }
+    if (page <= 4) {
+      return [1, 2, 3, 4, 5, '...', safeTotalPages];
+    }
+    if (page >= safeTotalPages - 3) {
+      return [1, '...', safeTotalPages - 4, safeTotalPages - 3, safeTotalPages - 2, safeTotalPages - 1, safeTotalPages];
+    }
+    return [1, '...', page - 1, page, page + 1, '...', safeTotalPages];
+  };
+
+  const btn =
+    'px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 transition cursor-pointer text-slate-700';
+
   return (
-    <div className="flex items-center justify-between pt-4 text-xs text-slate-500">
-      <span>
-        Showing {from}-{to} of {total}
-      </span>
-      <div className="flex items-center gap-2">
-        <button className={btn} disabled={page <= 1} onClick={() => setPage(page - 1)}>
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 text-xs text-slate-500">
+      <div className="flex items-center gap-3">
+        <span>
+          Showing <span className="font-semibold text-slate-700">{from}</span>-
+          <span className="font-semibold text-slate-700">{to}</span> of{' '}
+          <span className="font-semibold text-slate-700">{safeTotal}</span>
+        </span>
+
+        {onPageSizeChange && (
+          <div className="flex items-center gap-1.5 ml-2">
+            <span className="text-[11px] text-slate-400">Per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="bg-white border border-slate-200 text-slate-700 text-xs rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            >
+              {pageSizeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          className={btn}
+          disabled={page <= 1}
+          onClick={() => setPage(page - 1)}
+        >
           Previous
         </button>
-        <span>
-          Page {page} / {totalPages}
-        </span>
-        <button className={btn} disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+
+        <div className="flex items-center gap-1">
+          {getPageNumbers().map((p, idx) =>
+            p === '...' ? (
+              <span key={`ellipsis-${idx}`} className="px-1.5 text-slate-400 text-xs">
+                ...
+              </span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`w-7 h-7 text-xs font-medium rounded-lg transition cursor-pointer flex items-center justify-center ${
+                  page === p
+                    ? 'bg-emerald-600 text-white font-semibold shadow-xs'
+                    : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+        </div>
+
+        <button
+          className={btn}
+          disabled={page >= safeTotalPages}
+          onClick={() => setPage(page + 1)}
+        >
           Next
         </button>
       </div>

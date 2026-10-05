@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   FiMail,
-  FiSend,
   FiCheckCircle,
   FiClock,
   FiAlertCircle,
@@ -14,9 +13,9 @@ import {
   FiCopy,
   FiCheck,
   FiArrowRight,
-  FiShield,
 } from 'react-icons/fi';
 import { emailsApi } from '../../services/api';
+import Pagination from '../common/Pagination';
 
 export default function EmailsPage() {
   const [emails, setEmails] = useState([]);
@@ -36,15 +35,13 @@ export default function EmailsPage() {
 
   // Filters
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
 
   // Modals & Drawers
   const [selectedEmail, setSelectedEmail] = useState(null);
-  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-  const [testEmailAddress, setTestEmailAddress] = useState('');
-  const [testLoading, setTestLoading] = useState(false);
-  const [testMessage, setTestMessage] = useState(null);
   const [copiedId, setCopiedId] = useState(false);
 
   const fetchEmails = useCallback(
@@ -57,7 +54,9 @@ export default function EmailsPage() {
           page,
           limit: 15,
           search: search.trim() || undefined,
-          status: statusFilter !== 'all' ? statusFilter : undefined,
+          type: typeFilter !== 'all' ? typeFilter : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
         });
 
         setEmails(res.emails || []);
@@ -70,40 +69,16 @@ export default function EmailsPage() {
         setRefreshing(false);
       }
     },
-    [page, search, statusFilter]
+    [page, search, typeFilter, startDate, endDate]
   );
 
   useEffect(() => {
-    fetchEmails();
+    const timer = setTimeout(() => {
+      fetchEmails();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [fetchEmails]);
 
-  // Handle test email dispatch
-  const handleSendTestEmail = async (e) => {
-    e.preventDefault();
-    if (!testEmailAddress) return;
-
-    setTestLoading(true);
-    setTestMessage(null);
-
-    try {
-      await emailsApi.sendTestEmail(testEmailAddress);
-      setTestMessage({
-        type: 'success',
-        text: `Test email sent to ${testEmailAddress}! Resend webhook will update its status shortly.`,
-      });
-      setTestEmailAddress('');
-      setTimeout(() => {
-        fetchEmails(true);
-      }, 1200);
-    } catch (err) {
-      setTestMessage({
-        type: 'error',
-        text: err.response?.data?.message || err.message || 'Failed to dispatch test email',
-      });
-    } finally {
-      setTestLoading(false);
-    }
-  };
 
   const handleCopyId = (id) => {
     if (!id) return;
@@ -160,19 +135,59 @@ export default function EmailsPage() {
     }
   };
 
-  const deliveryRate = stats.total > 0 ? Math.round((stats.delivered / stats.total) * 100) : 0;
+  const getTypeBadge = (type) => {
+    switch (type) {
+      case 'user_register':
+      case 'user register':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+            User Register
+          </span>
+        );
+      case 'vendor_register':
+      case 'vendor register':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+            Vendor Register
+          </span>
+        );
+      case 'vendor_approval':
+      case 'vendor approval':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Vendor Approval
+          </span>
+        );
+      case 'order_successful':
+      case 'order successful':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+            Order Successful
+          </span>
+        );
+      case 'order_delivered':
+      case 'order delieverd':
+      case 'order delivered':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
+            Order Delivered
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+            {type ? type.replace(/_/g, ' ') : 'General'}
+          </span>
+        );
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Email Logs & Webhooks</h2>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Resend Active
-            </span>
-          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Email logs</h2>
           <p className="text-sm text-slate-500 mt-1">
             Real-time delivery status, bounce tracking, and webhook telemetry from Resend.
           </p>
@@ -187,147 +202,98 @@ export default function EmailsPage() {
             <FiRefreshCw className={`text-xs ${refreshing ? 'animate-spin text-emerald-600' : ''}`} />
             Refresh
           </button>
-
-          <button
-            onClick={() => {
-              setIsTestModalOpen(true);
-              setTestMessage(null);
-            }}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs shadow-emerald-600/20 cursor-pointer"
-          >
-            <FiSend className="text-xs" /> Send Test Email
-          </button>
         </div>
       </div>
 
-      {/* Webhook Endpoint Banner */}
-      <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-slate-800 text-emerald-400 mt-0.5">
-            <FiShield className="text-lg" />
-          </div>
-          <div>
-            <div className="text-xs uppercase font-mono tracking-wider text-slate-400 font-semibold">
-              Live Resend Webhook Listener
-            </div>
-            <div className="text-sm font-mono text-emerald-300 font-medium mt-0.5">
-              POST /api/webhooks/resend
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Listens for <span className="text-slate-300">email.delivered</span>, <span className="text-slate-300">email.bounced</span>, <span className="text-slate-300">email.complained</span>, and updates status automatically.
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-300 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700/60">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          Listening for webhook events
-        </div>
-      </div>
-
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Emails */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-medium uppercase tracking-wider">
-            <span>Total Dispatched</span>
-            <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
-              <FiMail className="text-sm" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900">{stats.total}</div>
-          <div className="mt-1 text-xs text-slate-500">All registered system emails</div>
-        </div>
-
-        {/* Delivered */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-emerald-700 text-xs font-medium uppercase tracking-wider">
-            <span>Delivered</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <FiCheckCircle className="text-sm" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900">{stats.delivered}</div>
-          <div className="mt-1 text-xs text-emerald-600 font-medium">
-            {deliveryRate}% verified delivery rate
-          </div>
-        </div>
-
-        {/* Opened / Clicked */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-purple-700 text-xs font-medium uppercase tracking-wider">
-            <span>Opened / Clicked</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-              <FiEye className="text-sm" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900">
-            {stats.opened + stats.clicked}
-          </div>
-          <div className="mt-1 text-xs text-purple-600 font-medium">
-            {stats.opened} opened, {stats.clicked} clicked
-          </div>
-        </div>
-
-        {/* Bounces & Complaints */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-rose-700 text-xs font-medium uppercase tracking-wider">
-            <span>Bounces & Spam</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
-              <FiAlertCircle className="text-sm" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900">
-            {stats.bounced + stats.complained}
-          </div>
-          <div className="mt-1 text-xs text-rose-600 font-medium">
-            {stats.bounced} bounced, {stats.complained} complaints
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
+      {/* Search and Filters Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Server Search Input */}
+        <div className="relative flex-1 min-w-[240px] max-w-md">
           <FiSearch className="absolute left-3.5 top-3 text-slate-400 text-sm" />
           <input
             type="text"
-            placeholder="Search by recipient email or subject..."
+            placeholder="Search email, subject, Resend ID..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+            className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
           />
-        </div>
-
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'delivered', label: 'Delivered' },
-            { id: 'sent', label: 'Sent' },
-            { id: 'opened', label: 'Opened' },
-            { id: 'bounced', label: 'Bounced' },
-            { id: 'complained', label: 'Spam' },
-          ].map((tab) => (
+          {search && (
             <button
-              key={tab.id}
               onClick={() => {
-                setStatusFilter(tab.id);
+                setSearch('');
                 setPage(1);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer whitespace-nowrap ${
-                statusFilter === tab.id
-                  ? 'bg-slate-900 text-white font-semibold'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
             >
-              {tab.label}
+              <FiX className="text-sm" />
             </button>
-          ))}
+          )}
+        </div>
+
+        {/* Filter Controls (Type & Date Range) */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Type Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Type:</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer transition"
+            >
+              <option value="all">All Types</option>
+              <option value="user_register">User Register</option>
+              <option value="vendor_register">Vendor Register</option>
+              <option value="vendor_approval">Vendor Approval</option>
+              <option value="order_successful">Order Successful</option>
+              <option value="order_delivered">Order Delivered</option>
+            </select>
+          </div>
+
+          {/* Date Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">From:</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setPage(1);
+              }}
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+            />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">To:</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setPage(1);
+              }}
+              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+            />
+          </div>
+
+          {/* Reset Filters Button */}
+          {(search || typeFilter !== 'all' || startDate || endDate) && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setTypeFilter('all');
+                setStartDate('');
+                setEndDate('');
+                setPage(1);
+              }}
+              className="px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-xl font-medium transition cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
 
@@ -345,16 +311,10 @@ export default function EmailsPage() {
             </div>
             <h3 className="text-sm font-semibold text-slate-800">No emails found</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              {search || statusFilter !== 'all'
-                ? 'Try adjusting your search query or status filter.'
-                : 'Emails sent via Resend for vendor registrations, notifications, and test emails will automatically appear here with live webhook delivery statuses.'}
+              {search || typeFilter !== 'all' || startDate || endDate
+                ? 'No email records match your filter criteria. Try resetting the filters.'
+                : 'Emails sent via Resend for user/vendor registrations and orders will automatically appear here with live webhook delivery statuses.'}
             </p>
-            <button
-              onClick={() => setIsTestModalOpen(true)}
-              className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition cursor-pointer"
-            >
-              <FiSend className="text-xs" /> Dispatch a test email now
-            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -378,9 +338,7 @@ export default function EmailsPage() {
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="font-medium text-slate-800">{email.subject}</div>
-                      <span className="inline-block mt-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {email.type?.replace('_', ' ')}
-                      </span>
+                      <div className="mt-1">{getTypeBadge(email.type)}</div>
                     </td>
                     <td className="py-3.5 px-4">{getStatusBadge(email.status)}</td>
                     <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500">
@@ -414,28 +372,15 @@ export default function EmailsPage() {
         )}
 
         {/* Pagination Bar */}
-        {pagination.pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200/80 bg-slate-50/50 text-xs text-slate-500">
-            <div>
-              Showing page <span className="font-semibold text-slate-800">{pagination.page}</span> of{' '}
-              <span className="font-semibold text-slate-800">{pagination.pages}</span> ({pagination.total} records)
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white disabled:opacity-50 cursor-pointer"
-              >
-                Previous
-              </button>
-              <button
-                disabled={page >= pagination.pages}
-                onClick={() => setPage((prev) => prev + 1)}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white disabled:opacity-50 cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
+        {emails.length > 0 && (
+          <div className="px-4 pb-4 border-t border-slate-200/80 bg-slate-50/30">
+            <Pagination
+              page={pagination.page || page}
+              totalPages={pagination.pages || 1}
+              setPage={setPage}
+              total={pagination.total || emails.length}
+              pageSize={pagination.limit || 15}
+            />
           </div>
         )}
       </div>
@@ -472,6 +417,10 @@ export default function EmailsPage() {
                   <span className="font-semibold text-slate-800">{selectedEmail.to}</span>
                 </div>
                 <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Type:</span>
+                  <div>{getTypeBadge(selectedEmail.type)}</div>
+                </div>
+                <div className="flex items-center justify-between">
                   <span className="text-slate-500">Subject:</span>
                   <span className="font-medium text-slate-800">{selectedEmail.subject}</span>
                 </div>
@@ -501,13 +450,13 @@ export default function EmailsPage() {
                 </div>
               )}
 
-              {/* Webhook Events Timeline */}
+              {/* Timeline */}
               <div>
                 <h4 className="font-semibold text-slate-700 mb-2 uppercase tracking-wider text-[11px]">
-                  Webhook Events Timeline ({selectedEmail.events?.length || 0})
+                  Timeline ({selectedEmail.events?.length || 0})
                 </h4>
                 {selectedEmail.events && selectedEmail.events.length > 0 ? (
-                  <div className="space-y-2 border-l-2 border-slate-200 pl-4 ml-2">
+                  <div className="max-h-56 overflow-y-auto pr-2 space-y-2 border-l-2 border-slate-200 pl-4 ml-2">
                     {selectedEmail.events.map((ev, index) => (
                       <div key={index} className="relative">
                         <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white"></span>
@@ -521,7 +470,7 @@ export default function EmailsPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-slate-400 italic">No webhook events logged yet.</div>
+                  <div className="text-slate-400 italic">No events logged yet.</div>
                 )}
               </div>
             </div>
@@ -538,82 +487,7 @@ export default function EmailsPage() {
         </div>
       )}
 
-      {/* Test Email Dispatch Modal */}
-      {isTestModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl p-6 relative animate-fadeIn">
-            <button
-              onClick={() => setIsTestModalOpen(false)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 text-lg cursor-pointer"
-            >
-              <FiX />
-            </button>
 
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                <FiSend className="text-base" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Send Test Email</h3>
-            </div>
-            <p className="text-xs text-slate-500 mb-4">
-              Sends an email via your configured Resend credentials to test email delivery and live webhook receipt.
-            </p>
-
-            {testMessage && (
-              <div
-                className={`p-3 rounded-xl mb-4 text-xs font-medium ${
-                  testMessage.type === 'success'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                    : 'bg-rose-50 border border-rose-200 text-rose-800'
-                }`}
-              >
-                {testMessage.text}
-              </div>
-            )}
-
-            <form onSubmit={handleSendTestEmail} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
-                  Recipient Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="your-email@example.com"
-                  value={testEmailAddress}
-                  onChange={(e) => setTestEmailAddress(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsTestModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={testLoading || !testEmailAddress}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
-                >
-                  {testLoading ? (
-                    <>
-                      <FiRefreshCw className="animate-spin text-xs" /> Sending...
-                    </>
-                  ) : (
-                    <>
-                      <FiSend className="text-xs" /> Dispatch
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

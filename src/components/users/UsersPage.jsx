@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axiosClient from '../../services/axiosClient';
 import Pagination, { usePagination, formatDate } from '../common/Pagination';
+import { FiUsers, FiUser, FiBriefcase, FiShield } from 'react-icons/fi';
 
 const ROLES = ['ALL', 'customer', 'vendor', 'admin'];
 
@@ -48,20 +49,30 @@ export default function UsersPage() {
 
       {error && <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-lg">{error}</div>}
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-        <div className="flex gap-1">
-          {ROLES.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRole(r)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${
-                role === r ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {r === 'ALL' ? 'All Users' : r}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
+        {[
+          { id: 'ALL', label: 'All Users', icon: FiUsers },
+          { id: 'customer', label: 'Customers', icon: FiUser },
+          { id: 'vendor', label: 'Vendors', icon: FiBriefcase },
+          { id: 'admin', label: 'Admins', icon: FiShield },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setRole(id)}
+            className={`pb-3 px-4 text-xs font-bold transition flex items-center gap-2 border-b-2 whitespace-nowrap cursor-pointer ${
+              role === id
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Icon className="text-sm" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}

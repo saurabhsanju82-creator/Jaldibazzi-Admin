@@ -61,7 +61,7 @@ export default function AdminDashboard({ onNavigateTab }) {
 
   // Determine morning, afternoon or evening
   const hour = currentTime.getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
   const availableYears = useMemo(() => {
     const years = new Set([new Date().getFullYear().toString(), ...Object.keys(summary?.monthlySales || {})]);
@@ -95,17 +95,22 @@ export default function AdminDashboard({ onNavigateTab }) {
   return (
     <div className="space-y-6">
       {/* 1. Welcome Greeting Bar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+      <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-gray-900 to-slate-950 border border-slate-800/80 rounded-2xl p-6 shadow-xl backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Dark blur gradient ambient glows */}
+        <div className="absolute -top-16 -left-16 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 -right-16 w-72 h-72 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 left-1/3 w-64 h-64 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
             {greeting}, {user?.name || 'Administrator'}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-300 mt-1">
             Real-time aggregate performance across all connected merchant storefronts.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-700 shrink-0 self-start sm:self-auto">
-          <FiClock className="text-emerald-600 text-sm" />
+        <div className="relative z-10 flex items-center gap-2.5 px-3.5 py-2 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-xs font-mono text-slate-200 shrink-0 self-start sm:self-auto shadow-sm">
+          <FiClock className="text-indigo-400 text-sm" />
           <span>
             {currentTime.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}{' '}
             • {currentTime.toLocaleTimeString()}

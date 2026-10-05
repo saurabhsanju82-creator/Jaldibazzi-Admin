@@ -1,14 +1,16 @@
 import React from 'react';
 import { NavLink, Navigate, useParams } from 'react-router-dom';
-import { FiSliders, FiStar, FiTag, FiGrid } from 'react-icons/fi';
+import { FiSliders, FiStar, FiTag, FiGrid, FiMapPin } from 'react-icons/fi';
 import SliderManagement from '../sliders/SliderManagement';
 import HomeShowcaseSettings from './HomeShowcaseSettings';
+import PincodeAvailability from './PincodeAvailability';
 
 const TABS = [
   { id: 'sliders', label: 'Home Sliders', icon: FiSliders },
   { id: 'featured', label: 'Featured Products', icon: FiStar },
   { id: 'sale', label: 'Products On Sale', icon: FiTag },
   { id: 'categories', label: 'Categories Cards', icon: FiGrid },
+  { id: 'pincodes', label: 'Manage Pincode Availability', icon: FiMapPin },
 ];
 
 export default function StoreSettings() {
@@ -32,7 +34,7 @@ export default function StoreSettings() {
             className={({ isActive }) =>
               `pb-3 px-4 text-xs font-bold transition flex items-center gap-2 border-b-2 whitespace-nowrap ${
                 isActive
-                  ? 'border-slate-900 text-slate-900'
+                  ? 'border-emerald-600 text-emerald-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`
             }
@@ -43,7 +45,13 @@ export default function StoreSettings() {
         ))}
       </div>
 
-      {tab === 'sliders' ? <SliderManagement /> : <HomeShowcaseSettings tab={tab} />}
+      {tab === 'sliders' ? (
+        <SliderManagement />
+      ) : tab === 'pincodes' ? (
+        <PincodeAvailability />
+      ) : (
+        <HomeShowcaseSettings tab={tab} />
+      )}
     </div>
   );
 }

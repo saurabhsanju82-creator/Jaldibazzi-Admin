@@ -22,6 +22,7 @@ import {
   FiClock,
   FiCheckCircle,
   FiAlertTriangle,
+  FiBriefcase,
 } from 'react-icons/fi';
 
 export default function VendorManagement() {
@@ -182,42 +183,46 @@ export default function VendorManagement() {
         </div>
       )}
 
-      {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {/* Status Filters */}
-        <div className="flex items-center gap-1.5 border-b sm:border-b-0 border-slate-200 pb-2 sm:pb-0 overflow-x-auto">
-          {[
-            { id: 'ALL', label: 'All Vendors' },
-            { id: 'ACTIVE', label: 'Active Vendors' },
-            { id: 'PENDING', label: 'Pending Requests', badge: counts.PENDING, highlight: counts.PENDING > 0 },
-            { id: 'DEACTIVATED', label: 'Deactivated' },
-          ].map((tab) => (
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
+        {[
+          { id: 'ALL', label: 'All Vendors', icon: FiBriefcase, count: counts.ALL },
+          { id: 'ACTIVE', label: 'Active Vendors', icon: FiCheckCircle, count: counts.ACTIVE },
+          { id: 'PENDING', label: 'Pending Requests', icon: FiClock, count: counts.PENDING, highlight: counts.PENDING > 0 },
+          { id: 'DEACTIVATED', label: 'Deactivated', icon: FiSlash, count: counts.DEACTIVATED },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = statusFilter === tab.id;
+          return (
             <button
               key={tab.id}
               onClick={() => dispatch(setStatusFilter(tab.id))}
-              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                statusFilter === tab.id
-                  ? 'bg-slate-900 text-white font-semibold shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              className={`pb-3 px-4 text-xs font-bold transition flex items-center gap-2 border-b-2 whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? 'border-emerald-600 text-emerald-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
+              <Icon className="text-sm" />
               <span>{tab.label}</span>
               <span
                 className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
                   tab.highlight
                     ? 'bg-amber-400 text-slate-950 animate-pulse'
-                    : statusFilter === tab.id
-                    ? 'bg-slate-800 text-slate-300'
-                    : 'bg-slate-200 text-slate-600'
+                    : isActive
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                {counts[tab.id]}
+                {tab.count}
               </span>
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
 
-        {/* Search */}
+      {/* Search */}
+      <div className="flex items-center justify-between gap-4">
         <div className="relative w-full sm:w-64">
           <FiSearch className="absolute left-3 top-2.5 text-slate-400 text-sm" />
           <input

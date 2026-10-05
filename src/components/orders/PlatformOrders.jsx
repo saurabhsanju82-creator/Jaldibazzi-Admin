@@ -8,7 +8,7 @@ import {
   updateOrderStatus
 } from '../../store/slices/ordersSlice';
 import OrderDetailModal from './OrderDetailModal';
-import { FiSearch, FiShoppingBag, FiEye, FiCheckCircle, FiClock, FiTruck, FiXCircle } from 'react-icons/fi';
+import { FiSearch, FiShoppingBag, FiEye, FiCheckCircle, FiClock, FiTruck, FiXCircle, FiRefreshCw } from 'react-icons/fi';
 
 export default function PlatformOrders() {
   const dispatch = useDispatch();
@@ -53,25 +53,33 @@ export default function PlatformOrders() {
         </div>
       </div>
 
-      {/* Filter Tabs & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-1 border-b sm:border-b-0 border-slate-200 pb-2 sm:pb-0">
-          {['ALL', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((st) => (
-            <button
-              key={st}
-              onClick={() => dispatch(setStatusFilter(st))}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                statusFilter === st
-                  ? 'bg-slate-900 text-white font-semibold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              {st === 'ALL' ? 'All Orders' : st}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
+        {[
+          { id: 'ALL', label: 'All Orders', icon: FiShoppingBag },
+          { id: 'PENDING', label: 'Pending', icon: FiClock },
+          { id: 'PROCESSING', label: 'Processing', icon: FiRefreshCw },
+          { id: 'SHIPPED', label: 'Shipped', icon: FiTruck },
+          { id: 'DELIVERED', label: 'Delivered', icon: FiCheckCircle },
+          { id: 'CANCELLED', label: 'Cancelled', icon: FiXCircle },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => dispatch(setStatusFilter(id))}
+            className={`pb-3 px-4 text-xs font-bold transition flex items-center gap-2 border-b-2 whitespace-nowrap cursor-pointer ${
+              statusFilter === id
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Icon className="text-sm" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
 
-        {/* Search */}
+      {/* Search */}
+      <div className="flex items-center justify-between gap-4">
         <div className="relative w-full sm:w-64">
           <FiSearch className="absolute left-3 top-2.5 text-slate-400 text-sm" />
           <input
