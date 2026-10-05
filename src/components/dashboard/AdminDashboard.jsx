@@ -2,21 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAdminMetrics } from '../../store/slices/analyticsSlice';
-import { fetchVendors } from '../../store/slices/vendorsSlice';
-import { fetchAllOrders } from '../../store/slices/ordersSlice';
-import { fetchAllProducts } from '../../store/slices/productsSlice';
+import { formatDate } from '../common/Pagination';
 import {
-  FiDollarSign,
-  FiShoppingBag,
-  FiUsers,
-  FiBriefcase,
-  FiBox,
-  FiAlertCircle,
-  FiArrowUpRight,
-  FiCheckCircle,
+  FiClock,
   FiChevronRight,
   FiBarChart2,
-  FiTrendingUp
+  FiTrendingUp,
+  FiCreditCard,
+  FiShoppingBag,
+  FiUsers,
+  FiDollarSign,
+  FiPackage,
+  FiGrid,
+  FiCheckCircle,
+  FiAlertCircle
 } from 'react-icons/fi';
 import {
   ResponsiveContainer,
@@ -35,61 +34,49 @@ const MONTH_NAMES = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
 
+const PAYMENT_BADGES = {
+  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+  pending: 'bg-amber-50 text-amber-700 border-amber-200/60',
+  failed: 'bg-rose-50 text-rose-700 border-rose-200/60',
+  refunded: 'bg-slate-100 text-slate-600 border-slate-200',
+};
+
+function Skeleton({ className = 'h-8 w-28' }) {
+  return <div className={`bg-slate-200 animate-pulse rounded-md ${className}`} />;
+}
+
 export default function AdminDashboard({ onNavigateTab }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { summary, loading } = useSelector((state) => state.analytics);
-  const { items: vendors } = useSelector((state) => state.vendors);
-  const { items: orders } = useSelector((state) => state.orders);
-  const { items: products } = useSelector((state) => state.products);
+  const { user } = useSelector((state) => state.auth);
+  const { dateFormat } = useSelector((state) => state.settings || { dateFormat: 'DD/MM/YYYY' });
+  const { items: localPayouts } = useSelector((state) => state.payouts || { items: [] });
 
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [chartType, setChartType] = useState('bar'); // 'bar' | 'line'
 
-  // Extract available years dynamically from real orders (fallback to current year)
+  // Update clock every second
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Determine morning, afternoon or evening
+  const hour = currentTime.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
   const availableYears = useMemo(() => {
-    const years = new Set([new Date().getFullYear().toString()]);
-    orders.forEach((o) => {
-      if (o.createdAt) {
-        const y = new Date(o.createdAt).getFullYear();
-        if (!isNaN(y)) years.add(y.toString());
-      }
-    });
+    const years = new Set([new Date().getFullYear().toString(), ...Object.keys(summary?.monthlySales || {})]);
     return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [orders]);
+  }, [summary]);
 
-  const [selectedYear, setSelectedYear] = useState(
-    availableYears[0] || new Date().getFullYear().toString()
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+
+  const currentYearData = useMemo(
+    () => summary?.monthlySales?.[selectedYear] || MONTH_NAMES.map((month) => ({ month, sales: 0, orders: 0 })),
+    [summary, selectedYear]
   );
-
-  // Compute real dynamic monthly sales and order count from loaded orders
-  const currentYearData = useMemo(() => {
-    // 12 months bucket: Jan to Dec
-    const monthlyBuckets = MONTH_NAMES.map((name) => ({
-      month: name,
-      sales: 0,
-      orders: 0,
-    }));
-
-    orders.forEach((o) => {
-      if (o.status === 'CANCELLED') return;
-      if (!o.createdAt) return;
-
-      const date = new Date(o.createdAt);
-      if (isNaN(date.getTime())) return;
-
-      const year = date.getFullYear().toString();
-      if (year === selectedYear) {
-        const monthIndex = date.getMonth(); // 0 to 11
-        const amount = Number(o.totalAmount || o.total || 0);
-        if (monthlyBuckets[monthIndex]) {
-          monthlyBuckets[monthIndex].sales += amount;
-          monthlyBuckets[monthIndex].orders += 1;
-        }
-      }
-    });
-
-    return monthlyBuckets;
-  }, [orders, selectedYear]);
 
   const totalYearSales = useMemo(() => {
     return currentYearData.reduce((sum, m) => sum + m.sales, 0);
@@ -99,146 +86,277 @@ export default function AdminDashboard({ onNavigateTab }) {
     return currentYearData.reduce((sum, m) => sum + m.orders, 0);
   }, [currentYearData]);
 
-  const maxSales = useMemo(() => {
-    const highest = Math.max(...currentYearData.map((d) => d.sales), 0);
-    return highest > 0 ? highest : 10000;
-  }, [currentYearData]);
-
   useEffect(() => {
     dispatch(fetchAdminMetrics());
-    dispatch(fetchVendors());
-    dispatch(fetchAllOrders());
-    dispatch(fetchAllProducts());
   }, [dispatch]);
 
-  const pendingVendors = vendors.filter((v) => v.status === 'PENDING');
-  const lowStockItems = products.filter((p) => p.stock <= p.lowStockThreshold);
+  // Loading flag for skeletons
+  const isLoading = loading || !summary;
 
-  const totalRevenue = orders
-    .filter((o) => o.status !== 'CANCELLED')
-    .reduce((sum, o) => sum + o.totalAmount, 0);
+  // Payout computations with fallback to local payouts if available
+  const donePayouts = localPayouts.filter((p) => p.status === 'SETTLED');
+  const pendingPayouts = localPayouts.filter((p) => p.status === 'PENDING');
 
-  if (loading && !summary) {
-    return (
-      <div className="py-20 text-center text-slate-400 text-sm">
-        Loading platform telemetry...
-      </div>
-    );
-  }
+  const payoutsDoneCount = summary?.payoutsDoneCount ?? donePayouts.length;
+  const payoutsDoneAmount = summary?.payoutsDoneAmount ?? donePayouts.reduce((sum, p) => sum + (p.netAmount || 0), 0);
+
+  const payoutsPendingCount = summary?.payoutsPendingCount ?? pendingPayouts.length;
+  const payoutsPendingAmount = summary?.payoutsPendingAmount ?? pendingPayouts.reduce((sum, p) => sum + (p.netAmount || 0), 0);
+
+  const recentPayments = summary?.recentPayments || [];
 
   return (
     <div className="space-y-6">
-      {/* Header & Quick Date Indicator */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 border-b border-slate-200/80 pb-5">
+      {/* 1. Welcome Greeting Bar */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Platform Overview</h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            {greeting}, {user?.name || 'Administrator'}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Real-time aggregate performance across all connected merchant storefronts.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/system-status')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold transition cursor-pointer"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>Live Services Monitor</span>
-          </button>
-          <div className="text-xs text-slate-400 font-mono hidden sm:block">
-            Last updated: Just now
+        <div className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-700 shrink-0 self-start sm:self-auto">
+          <FiClock className="text-emerald-600 text-sm" />
+          <span>
+            {currentTime.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}{' '}
+            • {currentTime.toLocaleTimeString()}
+          </span>
+        </div>
+      </div>
+
+      {/* 2. Three cards per row (3 Columns) with Skeleton support */}
+      <div className="space-y-6">
+        {/* ROW 1: Total sales | Total payouts done & amount | Payouts pending and amount */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Total Sales */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Sales</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <FiDollarSign className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <Skeleton className="h-8 w-36" />
+              ) : (
+                <div className="text-2xl font-bold text-slate-900">
+                  ₹{(summary?.totalSales || 0).toLocaleString()}
+                </div>
+              )}
+              <div className="mt-1 text-xs text-slate-400">
+                Gross platform merchandising value
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Total Payouts Done & Amount */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Payouts Done</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <FiCheckCircle className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <div className="space-y-1.5">
+                  <Skeleton className="h-8 w-32" />
+                  <Skeleton className="h-4 w-44" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-slate-900">
+                    {payoutsDoneCount} Completed
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-blue-600">
+                    ₹{payoutsDoneAmount.toLocaleString()} settled to vendors
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: Payouts Pending and Amount */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Payouts Pending</span>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <FiAlertCircle className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <div className="space-y-1.5">
+                  <Skeleton className="h-8 w-28" />
+                  <Skeleton className="h-4 w-48" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-slate-900">
+                    {payoutsPendingCount} Pending
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-amber-600">
+                    ₹{payoutsPendingAmount.toLocaleString()} awaiting settlement
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 2: Total vendor and active vendor | Total orders | Total payments and amount */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Total Vendor and Active Vendor */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Vendors Overview</span>
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <FiUsers className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <div className="space-y-1.5">
+                  <Skeleton className="h-8 w-36" />
+                  <Skeleton className="h-4 w-44" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-slate-900">
+                    {summary?.totalVendors || 0} Total Vendors
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-emerald-600">
+                    {summary?.activeVendors || 0} active merchants on platform
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Total Orders */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Orders</span>
+              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                <FiShoppingBag className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <div className="text-2xl font-bold text-slate-900">
+                  {summary?.totalOrders || 0}
+                </div>
+              )}
+              <div className="mt-1 text-xs text-slate-400">
+                All fulfillment pipelines
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Total Payments and Amount */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Payments</span>
+              <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                <FiCreditCard className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <div className="space-y-1.5">
+                  <Skeleton className="h-8 w-36" />
+                  <Skeleton className="h-4 w-36" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-slate-900">
+                    {summary?.totalPaymentsCount ?? summary?.totalOrders ?? 0} Transactions
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-teal-600">
+                    ₹{(summary?.totalPaymentsAmount || 0).toLocaleString()} collected
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 3: Total customers | Total products | Total categories */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Total Customers */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Customers</span>
+              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                <FiUsers className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                <div className="text-2xl font-bold text-slate-900">
+                  {summary?.totalCustomers || 0}
+                </div>
+              )}
+              <div className="mt-1 text-xs text-slate-400">
+                Active customer accounts
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Total Products */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Products</span>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <FiPackage className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                <div className="text-2xl font-bold text-slate-900">
+                  {summary?.totalProducts || 0}
+                </div>
+              )}
+              <div className="mt-1 text-xs text-slate-400">
+                {summary?.activeProducts || 0} active in catalog
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Total Categories */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Categories</span>
+              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                <FiGrid className="text-base" />
+              </div>
+            </div>
+            <div className="mt-3">
+              {isLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                <div className="text-2xl font-bold text-slate-900">
+                  {summary?.totalCategories || 0}
+                </div>
+              )}
+              <div className="mt-1 text-xs text-slate-400">
+                Catalog category groupings
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 3.1 KPI Metrics - Minimalist flat layout, no heavy cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-6 py-2 border-b border-slate-200/80">
-        <div>
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Sales</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">
-            ₹{totalRevenue.toLocaleString()}
-          </div>
-          <div className="mt-1 flex items-center text-xs text-emerald-600 font-medium">
-            <FiArrowUpRight className="mr-0.5" /> +14.2% vs last mo
-          </div>
-        </div>
-
-        <div>
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Orders</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">{orders.length}</div>
-          <div className="mt-1 text-xs text-slate-400">All channels</div>
-        </div>
-
-        <div>
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Active Vendors</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">
-            {vendors.filter((v) => v.status === 'ACTIVE').length}{' '}
-            <span className="text-xs font-normal text-slate-400">/ {vendors.length}</span>
-          </div>
-          <div className="mt-1 text-xs text-slate-400">
-            {pendingVendors.length} pending review
-          </div>
-        </div>
-
-        <div>
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Active Products</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">
-            {products.filter((p) => p.status === 'ACTIVE').length}
-          </div>
-          <div className="mt-1 text-xs text-slate-400">
-            {lowStockItems.length} low stock alerts
-          </div>
-        </div>
-
-        <div className="col-span-2 md:col-span-1">
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Customers</div>
-          <div className="mt-2 text-2xl font-bold text-slate-900">
-            {summary?.totalCustomers || 6}
-          </div>
-          <div className="mt-1 text-xs text-slate-400">Active accounts</div>
-        </div>
-      </div>
-
-      {/* 3.1 Pending or Important Activities Banner */}
-      {(pendingVendors.length > 0 || lowStockItems.length > 0) && (
-        <div className="p-4 bg-amber-50/70 border-l-4 border-amber-500 rounded-r-lg space-y-3">
-          <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs uppercase tracking-wider">
-            <FiAlertCircle className="text-amber-600 text-sm" /> Action Required on Platform
-          </div>
-
-          <div className="space-y-2 text-xs text-slate-700">
-            {pendingVendors.map((v) => (
-              <div key={v.id} className="flex items-center justify-between py-1">
-                <span>
-                  <strong>{v.name}</strong> ({v.ownerName}) submitted a merchant registration request.
-                </span>
-                <button
-                  onClick={() => onNavigateTab('vendors')}
-                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded text-xs transition"
-                >
-                  Review Application
-                </button>
-              </div>
-            ))}
-
-            {lowStockItems.length > 0 && (
-              <div className="flex items-center justify-between py-1 text-slate-600">
-                <span>
-                  <strong>{lowStockItems.length} products</strong> are currently at or below minimum inventory threshold.
-                </span>
-                <button
-                  onClick={() => onNavigateTab('products')}
-                  className="text-amber-800 font-medium hover:underline"
-                >
-                  Inspect Inventory &rarr;
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 3.1 Sales Trends & Business Performance */}
+      {/* 3. Total Sales Chart */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -405,18 +523,19 @@ export default function AdminDashboard({ onNavigateTab }) {
         </div>
       </div>
 
-      {/* 3.1 Vendor Performance Summaries */}
-      <div className="space-y-4">
+      {/* 4. Recent Payments Table (Recent 5 only with Skeletons) */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-900">Vendor Performance Snapshot</h3>
-            <p className="text-xs text-slate-500">Overview of top contributing merchants on the platform.</p>
+            <h3 className="text-base font-semibold text-slate-900">Recent Payments</h3>
+            <p className="text-xs text-slate-500">Latest 5 payment transactions across the marketplace.</p>
           </div>
           <button
-            onClick={() => onNavigateTab('performance')}
-            className="text-xs font-medium text-slate-900 hover:text-emerald-700 flex items-center gap-1"
+            onClick={() => navigate('/payments')}
+            className="text-xs font-semibold text-slate-900 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
           >
-            Full Analytics <FiChevronRight />
+            <span>All Payments</span>
+            <FiChevronRight />
           </button>
         </div>
 
@@ -424,62 +543,87 @@ export default function AdminDashboard({ onNavigateTab }) {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold">
-                <th className="py-2.5 pr-4">Vendor & Brand</th>
-                <th className="py-2.5 px-4">Category</th>
-                <th className="py-2.5 px-4">Status</th>
-                <th className="py-2.5 px-4">Orders</th>
-                <th className="py-2.5 px-4 text-right">Total Revenue</th>
-                <th className="py-2.5 pl-4 text-right">Action</th>
+                <th className="py-2.5 pr-4">Order ID</th>
+                <th className="py-2.5 px-4">Customer</th>
+                <th className="py-2.5 px-4">Date</th>
+                <th className="py-2.5 px-4">Method</th>
+                <th className="py-2.5 px-4">Payment ID</th>
+                <th className="py-2.5 px-4 text-right">Amount</th>
+                <th className="py-2.5 pl-4 text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {vendors.slice(0, 4).map((v) => (
-                <tr
-                  key={v.id || v._id}
-                  onClick={() => navigate(`/vendors/${v.id || v._id}`)}
-                  className="hover:bg-slate-100/60 transition cursor-pointer"
-                >
-                  <td className="py-3 pr-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={v.logo}
-                        alt={v.name}
-                        className="w-8 h-8 rounded object-cover border border-slate-200 shrink-0"
-                      />
-                      <div>
-                        <div className="font-semibold text-slate-900 text-sm">{v.name}</div>
-                        <div className="text-[11px] text-slate-400">{v.ownerName} &bull; {v.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-slate-600">{v.category}</td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                        v.status === 'ACTIVE'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                          : v.status === 'PENDING'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                          : 'bg-slate-100 text-slate-600 border border-slate-200'
-                      }`}
-                    >
-                      {v.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 font-mono">{v.totalOrders}</td>
-                  <td className="py-3 px-4 text-right font-mono font-semibold text-slate-900">
-                    ₹{v.totalSales.toLocaleString()}
-                  </td>
-                  <td className="py-3 pl-4 text-right" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => navigate(`/vendors/${v.id || v._id}`)}
-                      className="text-slate-600 hover:text-slate-900 font-medium cursor-pointer"
-                    >
-                      View &rarr;
-                    </button>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx}>
+                    <td className="py-3 pr-4">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-3 w-36 mt-1" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <Skeleton className="h-4 w-12" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <Skeleton className="h-4 w-24" />
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <Skeleton className="h-4 w-16 ml-auto" />
+                    </td>
+                    <td className="py-3 pl-4 text-right">
+                      <Skeleton className="h-5 w-16 ml-auto rounded-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : recentPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    No recent payments recorded.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentPayments.slice(0, 5).map((p) => (
+                  <tr
+                    key={p.id || p.orderNumber}
+                    onClick={() => navigate('/payments')}
+                    className="hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    <td className="py-3 pr-4 font-mono font-bold text-slate-900">
+                      {p.orderNumber}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-slate-900">{p.customerName}</div>
+                      <div className="text-[11px] text-slate-400">{p.customerEmail}</div>
+                    </td>
+                    <td className="py-3 px-4 text-slate-600">
+                      {formatDate(p.date, dateFormat)}
+                    </td>
+                    <td className="py-3 px-4 uppercase text-slate-600">
+                      {p.paymentMethod}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-500">
+                      {p.paymentId || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-semibold text-slate-900">
+                      ₹{(p.amount || 0).toLocaleString()}
+                    </td>
+                    <td className="py-3 pl-4 text-right">
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${
+                          PAYMENT_BADGES[p.paymentStatus?.toLowerCase()] || 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}
+                      >
+                        {p.paymentStatus}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

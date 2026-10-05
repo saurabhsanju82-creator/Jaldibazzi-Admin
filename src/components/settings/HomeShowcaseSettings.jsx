@@ -17,7 +17,7 @@ import {
   FiArrowRight,
 } from 'react-icons/fi';
 
-export default function HomeShowcaseSettings() {
+export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
   const dispatch = useDispatch();
   const { items: allProducts } = useSelector((state) => state.products || { items: [] });
   const { items: allCategories } = useSelector((state) => state.categories || { items: [] });
@@ -25,9 +25,6 @@ export default function HomeShowcaseSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // Active Tab: 'featured' | 'sale' | 'categories'
-  const [activeTab, setActiveTab] = useState('featured');
 
   // Selected State
   const [selectedFeatured, setSelectedFeatured] = useState([]); // Array of product objects (max 6)
@@ -237,45 +234,6 @@ export default function HomeShowcaseSettings() {
           <span>Showcase settings saved! Changes are live on the storefront homepage.</span>
         </div>
       )}
-
-      {/* Tabs Row */}
-      <div className="flex border-b border-slate-200 gap-2">
-        <button
-          onClick={() => setActiveTab('featured')}
-          className={`pb-3 px-4 text-xs font-bold transition flex items-center gap-2 cursor-pointer border-b-2 ${
-            activeTab === 'featured'
-              ? 'border-slate-900 text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <FiStar className="text-sm" />
-          <span>Featured Products ({selectedFeatured.length}/6)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('sale')}
-          className={`pb-3 px-4 text-xs font-bold transition flex items-center gap-2 cursor-pointer border-b-2 ${
-            activeTab === 'sale'
-              ? 'border-slate-900 text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <FiTag className="text-sm" />
-          <span>Products On Sale ({selectedSale.length}/4)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('categories')}
-          className={`pb-3 px-4 text-xs font-bold transition flex items-center gap-2 cursor-pointer border-b-2 ${
-            activeTab === 'categories'
-              ? 'border-slate-900 text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <FiGrid className="text-sm" />
-          <span>2 Main Categories Cards</span>
-        </button>
-      </div>
 
       {/* TAB 1: FEATURED PRODUCTS (6 ITEMS) */}
       {activeTab === 'featured' && (

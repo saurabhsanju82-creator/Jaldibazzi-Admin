@@ -463,33 +463,8 @@ export const ordersApi = {
 // Analytics API
 export const analyticsApi = {
   getSuperAdminSummary: async () => {
-    await delay();
-    const db = getPlatformDb();
-    const totalSales = db.orders
-      .filter((o) => o.status !== 'CANCELLED')
-      .reduce((sum, o) => sum + o.totalAmount, 0);
-    const totalOrders = db.orders.length;
-    const totalCustomers = db.customers.length;
-    const activeVendors = db.vendors.filter((v) => v.status === 'ACTIVE').length;
-    const pendingVendors = db.vendors.filter((v) => v.status === 'PENDING').length;
-    const activeProducts = db.products.filter((p) => p.status === 'ACTIVE').length;
-    const lowStockProducts = db.products.filter((p) => p.stock <= p.lowStockThreshold).length;
-
-    return {
-      totalSales,
-      totalOrders,
-      totalCustomers,
-      totalVendors: db.vendors.length,
-      activeVendors,
-      pendingVendors,
-      activeProducts,
-      lowStockProducts,
-      monthlySales: db.metrics.monthly,
-      topVendors: db.vendors
-        .filter((v) => v.status === 'ACTIVE')
-        .sort((a, b) => b.totalSales - a.totalSales)
-        .slice(0, 4)
-    };
+    const response = await axiosClient.get('/dashboard');
+    return response.data.data;
   }
 };
 
@@ -1135,7 +1110,7 @@ export const homeSettingsApi = {
 export const reportsApi = {
   exportReport: async ({ type, format, range, data }) => {
     const response = await axiosClient.post(
-      '/admin/reports/export',
+      '/reports/export',
       { type, format, range, data },
       { responseType: 'blob' }
     );

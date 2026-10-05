@@ -14,9 +14,11 @@ import PlatformReports from './components/reports/PlatformReports';
 import VendorPayouts from './components/payouts/VendorPayouts';
 import CouponManagement from './components/coupons/CouponManagement';
 import CategoryManagement from './components/categories/CategoryManagement';
-import SliderManagement from './components/sliders/SliderManagement';
-import HomeShowcaseSettings from './components/settings/HomeShowcaseSettings';
-import SystemStatusSettings from './components/settings/SystemStatusSettings';
+import StoreSettings from './components/settings/StoreSettings';
+import SettingsPage from './components/settings/SettingsPage';
+import UsersPage from './components/users/UsersPage';
+import PaymentsPage from './components/payments/PaymentsPage';
+import EmailsPage from './components/emails/EmailsPage';
 import ScrollToTop from './components/common/ScrollToTop';
 
 import { checkAdminAuth, setUnauthenticated } from './store/slices/authSlice';
@@ -28,6 +30,7 @@ import { fetchPayouts } from './store/slices/payoutsSlice';
 import { fetchCoupons } from './store/slices/couponsSlice';
 import { fetchCategories } from './store/slices/categoriesSlice';
 import { fetchSliders } from './store/slices/slidersSlice';
+import { fetchSettings } from './store/slices/settingsSlice';
 
 import GlobalApiLoader from './components/common/GlobalApiLoader';
 import { startLoading, stopLoading } from './store/slices/loadingSlice';
@@ -71,6 +74,7 @@ export default function App() {
       dispatch(fetchCoupons());
       dispatch(fetchCategories());
       dispatch(fetchSliders());
+      dispatch(fetchSettings());
     }
   }, [dispatch, isAuthenticated]);
 
@@ -121,22 +125,15 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/sliders" element={<Navigate to="/store-settings/sliders" replace />} />
+        <Route path="/home-showcase" element={<Navigate to="/store-settings/featured" replace />} />
+        <Route path="/store-settings" element={<Navigate to="/store-settings/sliders" replace />} />
         <Route
-          path="/sliders"
+          path="/store-settings/:tab"
           element={
             <ProtectedRoute>
               <AdminLayout>
-                <SliderManagement />
-              </AdminLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/home-showcase"
-          element={
-            <ProtectedRoute>
-              <AdminLayout>
-                <HomeShowcaseSettings />
+                <StoreSettings />
               </AdminLayout>
             </ProtectedRoute>
           }
@@ -212,15 +209,47 @@ export default function App() {
           }
         />
         <Route
-          path="/system-status"
+          path="/payments"
           element={
             <ProtectedRoute>
               <AdminLayout>
-                <SystemStatusSettings />
+                <PaymentsPage />
               </AdminLayout>
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <UsersPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/emails"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <EmailsPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
+        <Route
+          path="/settings/:tab"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <SettingsPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/system-status" element={<Navigate to="/settings/status" replace />} />
 
         {/* Catch-all fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

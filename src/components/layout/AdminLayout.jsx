@@ -5,21 +5,22 @@ import { logoutAdmin } from '../../store/slices/authSlice';
 import {
   FiGrid,
   FiUsers,
-  FiTrendingUp,
   FiBox,
   FiShoppingBag,
-  FiBarChart2,
   FiLogOut,
   FiShield,
   FiMenu,
   FiX,
-  FiExternalLink,
   FiDollarSign,
   FiTag,
   FiFolder,
   FiSliders,
-  FiLayout,
-  FiActivity,
+  FiCreditCard,
+  FiMail,
+  FiSettings,
+  FiBriefcase,
+  FiPackage,
+  FiChevronDown,
 } from 'react-icons/fi';
 
 export default function AdminLayout({ children }) {
@@ -31,58 +32,56 @@ export default function AdminLayout({ children }) {
   const { items: vendors } = useSelector((state) => state.vendors || { items: [] });
   const { items: payouts } = useSelector((state) => state.payouts || { items: [] });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState({});
 
   const pendingApprovalsCount = (vendors || []).filter((v) => v.status === 'PENDING').length;
   const pendingPayoutsCount = (payouts || []).filter((p) => p.status === 'PENDING').length;
+  const badgeColor = 'bg-amber-500 text-slate-950 font-bold';
 
   const navItems = [
     { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: FiGrid },
     {
-      id: 'vendors',
-      path: '/vendors',
-      label: 'Vendor Management',
-      icon: FiUsers,
-      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
-      badgeColor: 'bg-amber-500 text-slate-950 font-bold',
+      id: 'manage-vendor',
+      label: 'Manage Vendor',
+      icon: FiBriefcase,
+      children: [
+        {
+          id: 'vendors',
+          path: '/vendors',
+          label: 'Vendors',
+          icon: FiUsers,
+          badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
+          badgeColor,
+        },
+        {
+          id: 'payouts',
+          path: '/payouts',
+          label: 'Payouts',
+          icon: FiDollarSign,
+          badge: pendingPayoutsCount > 0 ? pendingPayoutsCount : null,
+          badgeColor,
+        },
+      ],
     },
     {
-      id: 'sliders',
-      path: '/sliders',
-      label: 'Home Sliders',
-      icon: FiSliders,
+      id: 'manage-products',
+      label: 'Manage Products',
+      icon: FiPackage,
+      children: [
+        { id: 'products', path: '/products', label: 'Products', icon: FiBox },
+        { id: 'categories', path: '/categories', label: 'Categories', icon: FiFolder },
+        { id: 'coupons', path: '/coupons', label: 'Coupons', icon: FiTag },
+      ],
     },
-    {
-      id: 'home-showcase',
-      path: '/home-showcase',
-      label: 'Showcase Settings',
-      icon: FiLayout,
-    },
-    {
-      id: 'categories',
-      path: '/categories',
-      label: 'Categories',
-      icon: FiFolder,
-    },
-    {
-      id: 'coupons',
-      path: '/coupons',
-      label: 'Coupons & Discounts',
-      icon: FiTag,
-    },
-    {
-      id: 'payouts',
-      path: '/payouts',
-      label: 'Vendor Payouts',
-      icon: FiDollarSign,
-      badge: pendingPayoutsCount > 0 ? pendingPayoutsCount : null,
-      badgeColor: 'bg-amber-500 text-slate-950 font-bold',
-    },
-    { id: 'performance', path: '/performance', label: 'Vendor Performance', icon: FiTrendingUp },
-    { id: 'products', path: '/products', label: 'Product Monitoring', icon: FiBox },
-    { id: 'orders', path: '/orders', label: 'Orders & Sales', icon: FiShoppingBag },
-    { id: 'reports', path: '/reports', label: 'Reports & Analytics', icon: FiBarChart2 },
-    { id: 'system-status', path: '/system-status', label: 'Live Status & Monitoring', icon: FiActivity },
+    { id: 'orders', path: '/orders', label: 'Orders', icon: FiShoppingBag },
+    { id: 'payments', path: '/payments', label: 'Payments', icon: FiCreditCard },
+    { id: 'users', path: '/users', label: 'Users', icon: FiUsers },
+    { id: 'emails', path: '/emails', label: 'Emails', icon: FiMail },
+    { id: 'store-settings', path: '/store-settings', label: 'Store Settings', icon: FiSliders },
+    { id: 'settings', path: '/settings', label: 'Settings', icon: FiSettings },
   ];
+
+  const flatItems = navItems.flatMap((n) => n.children || [n]);
 
   const handleLogout = async () => {
     await dispatch(logoutAdmin());
@@ -96,7 +95,58 @@ export default function AdminLayout({ children }) {
     return location.pathname.startsWith(itemPath);
   };
 
-  const currentNavItem = navItems.find((n) => isCurrentActive(n.path)) || navItems[0];
+  const currentNavItem = flatItems.find((n) => isCurrentActive(n.path)) || flatItems[0];
+
+  const renderLink = (item, { child = false, onClick } = {}) => {
+    const Icon = item.icon;
+    const active = isCurrentActive(item.path);
+    return (
+      <Link
+        key={item.id}
+        to={item.path}
+        onClick={onClick}
+        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+          child ? 'pl-9' : ''
+        } ${
+          active
+            ? 'bg-slate-800 text-white font-semibold'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <Icon className={`text-base ${active ? 'text-emerald-400' : 'text-slate-400'}`} />
+          <span>{item.label}</span>
+        </div>
+        {item.badge && (
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${item.badgeColor}`}>{item.badge}</span>
+        )}
+      </Link>
+    );
+  };
+
+  const renderNav = (onClick) =>
+    navItems.map((item) => {
+      if (!item.children) return renderLink(item, { onClick });
+      const Icon = item.icon;
+      const hasActive = item.children.some((c) => isCurrentActive(c.path));
+      const open = openGroups[item.id] ?? hasActive;
+      return (
+        <div key={item.id} className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setOpenGroups({ ...openGroups, [item.id]: !open })}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <Icon className={`text-base ${hasActive ? 'text-emerald-400' : 'text-slate-400'}`} />
+              <span>{item.label}</span>
+            </div>
+            <FiChevronDown className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+          {open && item.children.map((c) => renderLink(c, { child: true, onClick }))}
+        </div>
+      );
+    });
 
   return (
     <div className="h-screen bg-slate-50 text-slate-800 flex flex-col md:flex-row antialiased overflow-hidden">
@@ -114,32 +164,7 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isCurrentActive(item.path);
-            return (
-              <Link
-                key={item.id}
-                to={item.path}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${active
-                    ? 'bg-slate-800 text-white font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={`text-base ${active ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${item.badgeColor}`}>
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">{renderNav()}</nav>
 
         {/* User Info & Sign out */}
         <div className="p-4 border-t border-slate-800/80 flex items-center justify-between shrink-0">
@@ -187,29 +212,7 @@ export default function AdminLayout({ children }) {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 space-y-1 shrink-0 overflow-y-auto max-h-[calc(100vh-4rem)]">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isCurrentActive(item.path);
-            return (
-              <Link
-                key={item.id}
-                to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium ${active ? 'bg-slate-800 text-white' : 'text-slate-400'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className="text-base" />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${item.badgeColor}`}>
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+          {renderNav(() => setMobileMenuOpen(false))}
           <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
             <span className="text-slate-400">{user?.email}</span>
             <button
@@ -233,7 +236,7 @@ export default function AdminLayout({ children }) {
               {location.pathname.startsWith('/vendors/') && location.pathname !== '/vendors' ? (
                 <>
                   <Link to="/vendors" className="hover:text-slate-900 transition">
-                    Vendor Management
+                    Vendors
                   </Link>
                   <span>/</span>
                   <span className="font-semibold text-slate-900">Vendor Details</span>
@@ -248,9 +251,7 @@ export default function AdminLayout({ children }) {
         </header>
 
         {/* Content Body */}
-        <div className="p-6 lg:p-10 w-full flex-1 pb-12">
-          {children}
-        </div>
+        <div className="p-6 lg:p-10 w-full flex-1 pb-12">{children}</div>
       </main>
     </div>
   );

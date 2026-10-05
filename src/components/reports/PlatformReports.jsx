@@ -136,7 +136,7 @@ export default function PlatformReports() {
       } else {
         setNotice({
           type: 'error',
-          message: `Could not connect to backend server for PDF generation. Ensure backend is running at ${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}.`,
+          message: `Could not connect to backend server for PDF generation. Ensure backend is running at ${import.meta.env.VITE_API_URL || 'http://localhost:5000/api/admin'}.`,
         });
       }
       setTimeout(() => setNotice(null), 6000);

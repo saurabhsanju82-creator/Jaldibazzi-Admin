@@ -56,3 +56,8 @@
   transform: rotate(3deg) translate(0px, -4px);
 }
 
+/* Hide default browser reveal/clear icons on password inputs */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}

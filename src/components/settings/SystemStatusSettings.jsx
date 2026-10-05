@@ -16,7 +16,7 @@ import {
 
 const STOREFRONT_URL = import.meta.env.VITE_FRONTEND_URL || import.meta.env.VITE_STOREFRONT_URL || 'http://localhost:3000';
 const VENDOR_URL = import.meta.env.VITE_VENDOR_URL || 'http://localhost:5174';
-const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : '') || 'http://localhost:5000';
+const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/admin\/?$/, '') : '') || 'http://localhost:5000';
 const BACKEND_URL = `${BACKEND_BASE.replace(/\/+$/, '')}/health`;
 
 const DEFAULT_TARGETS = [

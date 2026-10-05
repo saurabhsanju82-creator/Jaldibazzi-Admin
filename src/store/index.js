@@ -9,6 +9,7 @@ import couponsReducer from './slices/couponsSlice';
 import categoriesReducer from './slices/categoriesSlice';
 import slidersReducer from './slices/slidersSlice';
 import loadingReducer from './slices/loadingSlice';
+import settingsReducer from './slices/settingsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     categories: categoriesReducer,
     sliders: slidersReducer,
     loading: loadingReducer,
+    settings: settingsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

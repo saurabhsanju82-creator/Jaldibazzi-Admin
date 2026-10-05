@@ -96,7 +96,7 @@ export default function AdminLogin() {
               htmlFor="email"
               className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider"
             >
-              Admin Email
+              Email
             </label>
             <div className="relative">
               <FiMail className="absolute left-3.5 top-3.5 text-slate-400 text-sm" />
