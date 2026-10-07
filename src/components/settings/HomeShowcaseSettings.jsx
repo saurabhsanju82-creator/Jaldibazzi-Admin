@@ -47,17 +47,25 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
   const [pickerTarget, setPickerTarget] = useState(null); // 'featured' | 'sale'
   const [productSearch, setProductSearch] = useState('');
 
+  const resolveProductItem = (item, productPool = allProducts) => {
+    if (!item) return null;
+    if (typeof item === 'object' && item.name) return item;
+    const id = typeof item === 'object' ? item._id || item.id : item;
+    const found = (productPool || []).find((p) => String(p._id || p.id) === String(id));
+    return found || (typeof item === 'object' ? item : { _id: id, id, name: `Product (${id})` });
+  };
+
   // Load existing settings on mount
   useEffect(() => {
     async function loadSettings() {
       setLoading(true);
-      const data = await homeSettingsApi.get();
+      const data = await homeSettingsApi.get({ allProducts, allCategories });
       if (data) {
         if (Array.isArray(data.featuredProducts)) {
-          setSelectedFeatured(data.featuredProducts);
+          setSelectedFeatured(data.featuredProducts.map((p) => resolveProductItem(p, allProducts)).filter(Boolean));
         }
         if (Array.isArray(data.saleProducts)) {
-          setSelectedSale(data.saleProducts);
+          setSelectedSale(data.saleProducts.map((p) => resolveProductItem(p, allProducts)).filter(Boolean));
         }
         if (Array.isArray(data.mainCategories)) {
           if (data.mainCategories[0]) {
@@ -82,6 +90,18 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
     }
     loadSettings();
   }, []);
+
+  // When allProducts loads, re-resolve any unresolved product IDs
+  useEffect(() => {
+    if (allProducts && allProducts.length > 0) {
+      setSelectedFeatured((prev) =>
+        prev.map((p) => resolveProductItem(p, allProducts)).filter(Boolean)
+      );
+      setSelectedSale((prev) =>
+        prev.map((p) => resolveProductItem(p, allProducts)).filter(Boolean)
+      );
+    }
+  }, [allProducts]);
 
   // When a category is picked for Main Card 1, auto-generate background gradient
   const handleSelectCategory1 = async (catId) => {
@@ -126,11 +146,11 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
 
   // Toggle / Select product from picker
   const handlePickProduct = (product) => {
-    const pId = product._id || product.id;
+    const pId = String(product._id || product.id);
     if (pickerTarget === 'featured') {
-      const exists = selectedFeatured.some((p) => (p._id || p.id) === pId);
+      const exists = selectedFeatured.some((p) => String(p._id || p.id || p) === pId);
       if (exists) {
-        setSelectedFeatured((prev) => prev.filter((p) => (p._id || p.id) !== pId));
+        setSelectedFeatured((prev) => prev.filter((p) => String(p._id || p.id || p) !== pId));
       } else {
         if (selectedFeatured.length >= 6) {
           alert('You can select a maximum of 6 featured products.');
@@ -139,9 +159,9 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
         setSelectedFeatured((prev) => [...prev, product]);
       }
     } else if (pickerTarget === 'sale') {
-      const exists = selectedSale.some((p) => (p._id || p.id) === pId);
+      const exists = selectedSale.some((p) => String(p._id || p.id || p) === pId);
       if (exists) {
-        setSelectedSale((prev) => prev.filter((p) => (p._id || p.id) !== pId));
+        setSelectedSale((prev) => prev.filter((p) => String(p._id || p.id || p) !== pId));
       } else {
         if (selectedSale.length >= 4) {
           alert('You can select a maximum of 4 on-sale products.');
@@ -153,11 +173,13 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
   };
 
   const removeFeaturedProduct = (pId) => {
-    setSelectedFeatured((prev) => prev.filter((p) => (p._id || p.id) !== pId));
+    const targetId = String(pId?._id || pId?.id || pId);
+    setSelectedFeatured((prev) => prev.filter((p) => String(p._id || p.id || p) !== targetId));
   };
 
   const removeSaleProduct = (pId) => {
-    setSelectedSale((prev) => prev.filter((p) => (p._id || p.id) !== pId));
+    const targetId = String(pId?._id || pId?.id || pId);
+    setSelectedSale((prev) => prev.filter((p) => String(p._id || p.id || p) !== targetId));
   };
 
   // Save all settings
@@ -166,17 +188,21 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
     setSaveSuccess(false);
 
     const payload = {
-      featuredProducts: selectedFeatured.map((p) => p._id || p.id),
-      saleProducts: selectedSale.map((p) => p._id || p.id),
+      featuredProducts: selectedFeatured
+        .map((p) => (typeof p === 'object' && p ? p._id || p.id : p))
+        .filter(Boolean),
+      saleProducts: selectedSale
+        .map((p) => (typeof p === 'object' && p ? p._id || p.id : p))
+        .filter(Boolean),
       mainCategories: [
         {
-          category: mainCat1.category ? (mainCat1.category._id || mainCat1.category.id) : null,
+          category: mainCat1.category ? (mainCat1.category._id || mainCat1.category.id || mainCat1.category) : null,
           title: mainCat1.title,
           subtitle: mainCat1.subtitle,
           bgGradient: mainCat1.bgGradient,
         },
         {
-          category: mainCat2.category ? (mainCat2.category._id || mainCat2.category.id) : null,
+          category: mainCat2.category ? (mainCat2.category._id || mainCat2.category.id || mainCat2.category) : null,
           title: mainCat2.title,
           subtitle: mainCat2.subtitle,
           bgGradient: mainCat2.bgGradient,
@@ -184,14 +210,29 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
       ],
     };
 
-    await homeSettingsApi.update(payload);
+    const saved = await homeSettingsApi.update(payload, {
+      featuredProducts: selectedFeatured,
+      saleProducts: selectedSale,
+      allProducts,
+      allCategories,
+    });
+
+    if (saved) {
+      if (Array.isArray(saved.featuredProducts) && saved.featuredProducts.length > 0) {
+        setSelectedFeatured(saved.featuredProducts.map((p) => resolveProductItem(p, allProducts)).filter(Boolean));
+      }
+      if (Array.isArray(saved.saleProducts) && saved.saleProducts.length > 0) {
+        setSelectedSale(saved.saleProducts.map((p) => resolveProductItem(p, allProducts)).filter(Boolean));
+      }
+    }
+
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   const getProductImage = (p) =>
-    (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : p.image) ||
+    (Array.isArray(p?.images) && p.images.length > 0 ? p.images[0] : p?.image) ||
     'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=160&auto=format&fit=crop&q=80';
 
   const filteredPickerProducts = (allProducts || []).filter((p) => {
@@ -269,36 +310,40 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {selectedFeatured.map((p, idx) => (
-                <div
-                  key={p._id || p.id}
-                  className="border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3 bg-slate-50/50 shadow-xs relative group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                      {idx + 1}
-                    </span>
-                    <img
-                      src={getProductImage(p)}
-                      alt={p.name}
-                      className="w-12 h-12 rounded-lg object-cover bg-white border border-slate-200 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-900 truncate">{p.name}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">₹{p.price}</p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeFeaturedProduct(p._id || p.id)}
-                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
-                    title="Remove from featured"
+              {selectedFeatured.map((rawP, idx) => {
+                const p = resolveProductItem(rawP, allProducts) || rawP;
+                const pKey = p?._id || p?.id || (typeof rawP === 'string' ? rawP : idx);
+                return (
+                  <div
+                    key={pKey}
+                    className="border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3 bg-slate-50/50 shadow-xs relative group"
                   >
-                    <FiTrash2 className="text-sm" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <img
+                        src={getProductImage(p)}
+                        alt={p?.name || 'Product'}
+                        className="w-12 h-12 rounded-lg object-cover bg-white border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-900 truncate">{p?.name || 'Product'}</p>
+                        <p className="text-[11px] text-slate-400 font-mono">₹{p?.price || 0}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeFeaturedProduct(pKey)}
+                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                      title="Remove from featured"
+                    >
+                      <FiTrash2 className="text-sm" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -338,36 +383,40 @@ export default function HomeShowcaseSettings({ tab: activeTab = 'featured' }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {selectedSale.map((p, idx) => (
-                <div
-                  key={p._id || p.id}
-                  className="border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3 bg-slate-50/50 shadow-xs relative group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-6 h-6 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                      {idx + 1}
-                    </span>
-                    <img
-                      src={getProductImage(p)}
-                      alt={p.name}
-                      className="w-12 h-12 rounded-lg object-cover bg-white border border-slate-200 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-900 truncate">{p.name}</p>
-                      <p className="text-[11px] text-rose-600 font-mono font-bold">₹{p.salePrice || p.price}</p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeSaleProduct(p._id || p.id)}
-                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
-                    title="Remove from sale"
+              {selectedSale.map((rawP, idx) => {
+                const p = resolveProductItem(rawP, allProducts) || rawP;
+                const pKey = p?._id || p?.id || (typeof rawP === 'string' ? rawP : idx);
+                return (
+                  <div
+                    key={pKey}
+                    className="border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3 bg-slate-50/50 shadow-xs relative group"
                   >
-                    <FiTrash2 className="text-sm" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <img
+                        src={getProductImage(p)}
+                        alt={p?.name || 'Product'}
+                        className="w-12 h-12 rounded-lg object-cover bg-white border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-900 truncate">{p?.name || 'Product'}</p>
+                        <p className="text-[11px] text-rose-600 font-mono font-bold">₹{p?.salePrice || p?.price || 0}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeSaleProduct(pKey)}
+                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                      title="Remove from sale"
+                    >
+                      <FiTrash2 className="text-sm" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

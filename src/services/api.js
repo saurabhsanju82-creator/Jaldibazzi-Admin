@@ -308,13 +308,21 @@ export const vendorsApi = {
 // Products API
 const normalizeSuperAdminProduct = (p) => {
   if (!p) return null;
+  const sPrice = Number(p.sellerPrice !== undefined ? p.sellerPrice : (p.price || 0));
+  const dPrice = Number(p.discountedPrice !== undefined ? p.discountedPrice : (p.price || sPrice));
+  const oPrice = Number(p.originalPrice !== undefined ? p.originalPrice : (p.compareAtPrice || 0));
   return {
     id: p._id || p.id,
     _id: p._id || p.id,
     name: p.name,
     description: p.description || '',
-    price: Number(p.price || 0),
-    salePrice: p.salePrice || p.compareAtPrice || null,
+    sellerPrice: sPrice,
+    originalPrice: oPrice,
+    discountedPrice: dPrice,
+    margin: Number(p.margin !== undefined ? p.margin : Math.max(0, dPrice - sPrice)),
+    price: dPrice,
+    salePrice: p.salePrice || oPrice || null,
+    compareAtPrice: oPrice,
     stock: Number(p.stock !== undefined ? p.stock : 0),
     sku: p.sku || '',
     images: Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []),
@@ -326,7 +334,7 @@ const normalizeSuperAdminProduct = (p) => {
     vendorName: typeof p.vendor === 'object' ? (p.vendor?.shopName || p.vendor?.name) : (p.vendorName || 'Merchant'),
     status: p.status || (p.isActive ? 'ACTIVE' : 'DRAFT'),
     isActive: p.isActive !== undefined ? p.isActive : (p.status === 'ACTIVE'),
-    isApproved: p.isApproved !== undefined ? p.isApproved : true,
+    isApproved: Boolean(p.isApproved),
     lowStockThreshold: Number(p.lowStockThreshold || 10),
   };
 };
@@ -385,12 +393,61 @@ export const productsApi = {
     }
     const db = getPlatformDb();
     const index = db.products.findIndex((p) => p.id === id || p._id === id);
-    if (index === -1) throw new Error('Product not found');
-    db.products[index].status = status;
-    db.products[index].isActive = status === 'ACTIVE';
-    savePlatformDb(db);
-    return db.products[index];
-  }
+    if (index !== -1) {
+      db.products[index].status = status;
+      db.products[index].isActive = status === 'ACTIVE';
+      savePlatformDb(db);
+      return normalizeSuperAdminProduct(db.products[index]);
+    }
+    throw new Error('Product not found');
+  },
+
+  updatePricingAndApproval: async (id, { originalPrice, discountedPrice, isApproved, couponCodes }) => {
+    try {
+      const response = await axiosClient.put(`/products/${id}`, {
+        originalPrice: Number(originalPrice),
+        discountedPrice: Number(discountedPrice),
+        isApproved: Boolean(isApproved),
+        isActive: true,
+        status: 'ACTIVE',
+        couponCodes: Array.isArray(couponCodes) ? couponCodes : [],
+      });
+      const updated = normalizeSuperAdminProduct(response.data?.data);
+      if (updated) {
+        const db = getPlatformDb();
+        const index = db.products.findIndex((p) => p.id === id || p._id === id);
+        if (index !== -1) {
+          db.products[index] = { ...db.products[index], ...updated, couponCodes: Array.isArray(couponCodes) ? couponCodes : updated.couponCodes };
+          savePlatformDb(db);
+        }
+        return updated;
+      }
+    } catch (err) {
+      console.warn('Backend updatePricingAndApproval failed, updating local DB:', err.message);
+    }
+    const db = getPlatformDb();
+    const index = db.products.findIndex((p) => p.id === id || p._id === id);
+    if (index !== -1) {
+      const orig = Number(originalPrice);
+      const disc = Number(discountedPrice);
+      const sPrice = db.products[index].sellerPrice || db.products[index].price || 0;
+      db.products[index] = {
+        ...db.products[index],
+        originalPrice: orig,
+        discountedPrice: disc,
+        price: disc,
+        compareAtPrice: orig,
+        margin: disc - sPrice,
+        isApproved: Boolean(isApproved),
+        status: isApproved ? 'ACTIVE' : db.products[index].status,
+        isActive: isApproved ? true : db.products[index].isActive,
+        couponCodes: Array.isArray(couponCodes) ? couponCodes : (db.products[index].couponCodes || []),
+      };
+      savePlatformDb(db);
+      return normalizeSuperAdminProduct(db.products[index]);
+    }
+    throw new Error('Product not found');
+  },
 };
 
 // Orders API
@@ -1052,57 +1109,115 @@ export const slidersApi = {
 
 // Home Settings API (Showcase curation: featured, on-sale, 2 main categories)
 export const homeSettingsApi = {
-  get: async () => {
+  get: async (context = {}) => {
+    let result = null;
     try {
       const response = await axiosClient.get('/home-settings');
       if (response.data?.data) {
-        const db = getPlatformDb();
-        db.homeSettings = response.data.data;
-        savePlatformDb(db);
-        return response.data.data;
+        result = response.data.data;
       }
     } catch (err) {
       console.warn('Backend /home-settings failed, using local storage:', err.message);
     }
     const db = getPlatformDb();
-    return db.homeSettings || { featuredProducts: [], saleProducts: [], mainCategories: [] };
+    if (!result) {
+      result = db.homeSettings || { featuredProducts: [], saleProducts: [], mainCategories: [] };
+    }
+
+    const allProducts = [
+      ...(Array.isArray(context.allProducts) ? context.allProducts : []),
+      ...(Array.isArray(db.products) ? db.products : []),
+    ];
+
+    if (result) {
+      if (Array.isArray(result.featuredProducts)) {
+        result.featuredProducts = result.featuredProducts.map((p) => {
+          if (typeof p === 'object' && p && p.name) return p;
+          const id = typeof p === 'object' && p ? (p._id || p.id) : p;
+          return allProducts.find((item) => String(item._id || item.id) === String(id)) || p;
+        }).filter(Boolean);
+      }
+      if (Array.isArray(result.saleProducts)) {
+        result.saleProducts = result.saleProducts.map((p) => {
+          if (typeof p === 'object' && p && p.name) return p;
+          const id = typeof p === 'object' && p ? (p._id || p.id) : p;
+          return allProducts.find((item) => String(item._id || item.id) === String(id)) || p;
+        }).filter(Boolean);
+      }
+      db.homeSettings = result;
+      savePlatformDb(db);
+    }
+
+    return result;
   },
 
-  update: async (data) => {
+  update: async (data, context = {}) => {
+    let backendResult = null;
     try {
       const response = await axiosClient.put('/home-settings', data);
       if (response.data?.data) {
-        const db = getPlatformDb();
-        db.homeSettings = response.data.data;
-        savePlatformDb(db);
-        return response.data.data;
+        backendResult = response.data.data;
       }
     } catch (err) {
       console.warn('Backend PUT /home-settings failed, saving locally:', err.message);
     }
+
     const db = getPlatformDb();
-    const featuredPopulated = Array.isArray(data.featuredProducts)
-      ? data.featuredProducts.map((id) => (typeof id === 'object' ? id : (db.products?.find((p) => (p._id || p.id) === id) || id)))
-      : [];
-    const salePopulated = Array.isArray(data.saleProducts)
-      ? data.saleProducts.map((id) => (typeof id === 'object' ? id : (db.products?.find((p) => (p._id || p.id) === id) || id)))
-      : [];
+    const allProducts = [
+      ...(Array.isArray(context.allProducts) ? context.allProducts : []),
+      ...(Array.isArray(db.products) ? db.products : []),
+    ];
+    const allCategories = [
+      ...(Array.isArray(context.allCategories) ? context.allCategories : []),
+      ...(Array.isArray(db.categories) ? db.categories : []),
+    ];
+
+    const resolveProduct = (item) => {
+      if (!item) return null;
+      if (typeof item === 'object' && item && item.name) return item;
+      const id = typeof item === 'object' && item ? (item._id || item.id) : item;
+      const found = allProducts.find((p) => String(p._id || p.id) === String(id));
+      return found || (typeof item === 'object' ? item : { _id: id, id, name: `Product (${id})` });
+    };
+
+    const resolveCategory = (cat) => {
+      if (!cat) return null;
+      if (typeof cat === 'object' && cat && (cat.name || cat.title)) return cat;
+      const id = typeof cat === 'object' && cat ? (cat._id || cat.id) : cat;
+      const found = allCategories.find((c) => String(c._id || c.id) === String(id));
+      return found || (typeof cat === 'object' ? cat : null);
+    };
+
+    const featuredPopulated = Array.isArray(context.featuredProducts) && context.featuredProducts.length > 0
+      ? context.featuredProducts
+      : (Array.isArray(backendResult?.featuredProducts) && backendResult.featuredProducts.length > 0 && typeof backendResult.featuredProducts[0] === 'object'
+          ? backendResult.featuredProducts
+          : (Array.isArray(data.featuredProducts) ? data.featuredProducts.map(resolveProduct).filter(Boolean) : []));
+
+    const salePopulated = Array.isArray(context.saleProducts) && context.saleProducts.length > 0
+      ? context.saleProducts
+      : (Array.isArray(backendResult?.saleProducts) && backendResult.saleProducts.length > 0 && typeof backendResult.saleProducts[0] === 'object'
+          ? backendResult.saleProducts
+          : (Array.isArray(data.saleProducts) ? data.saleProducts.map(resolveProduct).filter(Boolean) : []));
+
     const mainCatsPopulated = Array.isArray(data.mainCategories)
       ? data.mainCategories.map((mc) => ({
           ...mc,
-          category: typeof mc.category === 'object' ? mc.category : (db.categories?.find((c) => (c._id || c.id) === mc.category) || mc.category),
+          category: resolveCategory(mc.category),
         }))
-      : [];
+      : (backendResult?.mainCategories || []);
 
     const populatedData = {
       ...data,
+      ...(backendResult || {}),
       featuredProducts: featuredPopulated,
       saleProducts: salePopulated,
       mainCategories: mainCatsPopulated,
     };
+
     db.homeSettings = populatedData;
     savePlatformDb(db);
-    return populatedData;
+    return backendResult || populatedData;
   },
 };
 

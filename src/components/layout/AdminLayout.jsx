@@ -38,12 +38,27 @@ export default function AdminLayout({ children }) {
   const navItems = [
     { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: FiGrid },
     {
-      id: 'vendors',
-      path: '/vendors',
-      label: 'Vendors',
+      id: 'manage-vendors',
+      label: 'Manage Vendors',
       icon: FiBriefcase,
       badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
       badgeColor,
+      children: [
+        {
+          id: 'vendors',
+          path: '/vendors',
+          label: 'Vendors List',
+          icon: FiUsers,
+          badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
+          badgeColor,
+        },
+        {
+          id: 'vendor-payouts',
+          path: '/payouts',
+          label: 'Vendor Payouts',
+          icon: FiCreditCard,
+        },
+      ],
     },
     {
       id: 'manage-products',
@@ -123,7 +138,14 @@ export default function AdminLayout({ children }) {
               <Icon className={`text-base ${hasActive ? 'text-emerald-400' : 'text-slate-400'}`} />
               <span>{item.label}</span>
             </div>
-            <FiChevronDown className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+            <div className="flex items-center gap-2">
+              {item.badge && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${item.badgeColor}`}>
+                  {item.badge}
+                </span>
+              )}
+              <FiChevronDown className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+            </div>
           </button>
           {open && item.children.map((c) => renderLink(c, { child: true, onClick }))}
         </div>

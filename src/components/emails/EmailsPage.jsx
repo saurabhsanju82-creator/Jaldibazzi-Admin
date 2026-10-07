@@ -136,41 +136,66 @@ export default function EmailsPage() {
   };
 
   const getTypeBadge = (type) => {
-    switch (type) {
+    const normalizedType = String(type || '').toLowerCase().trim();
+    switch (normalizedType) {
+      case 'user registered':
+      case 'user_registered':
       case 'user_register':
       case 'user register':
         return (
           <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-            User Register
+            User Registered
           </span>
         );
-      case 'vendor_register':
-      case 'vendor register':
+      case 'user reset password':
+      case 'user_reset_password':
         return (
-          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
-            Vendor Register
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+            User Reset Password
           </span>
         );
-      case 'vendor_approval':
-      case 'vendor approval':
-        return (
-          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Vendor Approval
-          </span>
-        );
+      case 'user order successfully placed':
       case 'order_successful':
       case 'order successful':
         return (
           <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
-            Order Successful
+            User Order Successfully Placed
           </span>
         );
+      case 'user order delieverd':
+      case 'user order delivered':
       case 'order_delivered':
-      case 'order delieverd':
       case 'order delivered':
         return (
           <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
-            Order Delivered
+            User Order Delivered
+          </span>
+        );
+      case 'vendor registered':
+      case 'vendor_registered':
+      case 'vendor_register':
+      case 'vendor register':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+            Vendor Registered
+          </span>
+        );
+      case 'vendor approved':
+      case 'vendor_approved':
+      case 'vendor_approval':
+      case 'vendor approval':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Vendor Approved
+          </span>
+        );
+      case 'vendor reset pswrd':
+      case 'vendor reset password':
+      case 'vendor_reset_pswrd':
+      case 'vendor_reset_password':
+        return (
+          <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200">
+            Vendor Reset Password
           </span>
         );
       default:
@@ -247,11 +272,13 @@ export default function EmailsPage() {
               className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer transition"
             >
               <option value="all">All Types</option>
-              <option value="user_register">User Register</option>
-              <option value="vendor_register">Vendor Register</option>
-              <option value="vendor_approval">Vendor Approval</option>
-              <option value="order_successful">Order Successful</option>
-              <option value="order_delivered">Order Delivered</option>
+              <option value="user registered">User Registered</option>
+              <option value="user reset password">User Reset Password</option>
+              <option value="user order successfully placed">User Order Successfully Placed</option>
+              <option value="user order delieverd">User Order Delivered</option>
+              <option value="vendor registered">Vendor Registered</option>
+              <option value="vendor approved">Vendor Approved</option>
+              <option value="vendor reset pswrd">Vendor Reset Password</option>
             </select>
           </div>
 

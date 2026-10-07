@@ -513,6 +513,20 @@ export default function VendorDetail() {
                     </span>
                   ))}
                 </div>
+
+                {(vendor.suggestedCategory || vendor.otherCategory) && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1">
+                    <span className="font-bold text-amber-900 block text-[11px] uppercase tracking-wider">
+                      Custom Category Suggestion
+                    </span>
+                    <span className="font-semibold text-slate-900 text-sm block">
+                      {vendor.suggestedCategory || vendor.otherCategory}
+                    </span>
+                    <p className="text-[11px] text-amber-800">
+                      Vendor submitted this custom niche during onboarding. You can create it in Category Management or map to an existing category.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

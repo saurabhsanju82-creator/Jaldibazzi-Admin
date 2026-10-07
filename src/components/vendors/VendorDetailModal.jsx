@@ -175,6 +175,21 @@ export default function VendorDetailModal({ vendor, onClose }) {
                 <p className="text-slate-600 leading-relaxed">{vendor.description}</p>
               </div>
 
+              {/* Suggested Custom Category */}
+              {(vendor.suggestedCategory || vendor.otherCategory) && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1">
+                  <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                    Suggested Custom Category
+                  </div>
+                  <div className="font-bold text-slate-900 text-sm">
+                    {vendor.suggestedCategory || vendor.otherCategory}
+                  </div>
+                  <p className="text-[11px] text-amber-700 leading-relaxed">
+                    Vendor suggested this niche during registration. Review and create it under Category Management or assign the vendor to an existing category before approving.
+                  </p>
+                </div>
+              )}
+
               {/* Contact Information Cards */}
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1">

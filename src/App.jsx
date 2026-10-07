@@ -18,6 +18,7 @@ import SettingsPage from './components/settings/SettingsPage';
 import UsersPage from './components/users/UsersPage';
 import PaymentsPage from './components/payments/PaymentsPage';
 import EmailsPage from './components/emails/EmailsPage';
+import VendorPayouts from './components/payouts/VendorPayouts';
 import ScrollToTop from './components/common/ScrollToTop';
 
 import { checkAdminAuth, setUnauthenticated } from './store/slices/authSlice';
@@ -29,6 +30,7 @@ import { fetchCoupons } from './store/slices/couponsSlice';
 import { fetchCategories } from './store/slices/categoriesSlice';
 import { fetchSliders } from './store/slices/slidersSlice';
 import { fetchSettings } from './store/slices/settingsSlice';
+import { fetchPayouts } from './store/slices/payoutsSlice';
 
 import GlobalApiLoader from './components/common/GlobalApiLoader';
 import { startLoading, stopLoading } from './store/slices/loadingSlice';
@@ -72,6 +74,7 @@ export default function App() {
       dispatch(fetchCategories());
       dispatch(fetchSliders());
       dispatch(fetchSettings());
+      dispatch(fetchPayouts());
     }
   }, [dispatch, isAuthenticated]);
 
@@ -155,7 +158,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/payouts" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/payouts"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <VendorPayouts />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/vendors/payouts" element={<Navigate to="/payouts" replace />} />
         <Route
           path="/performance"
           element={

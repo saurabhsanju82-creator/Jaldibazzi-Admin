@@ -34,8 +34,8 @@ import {
 
 export default function VendorPayouts() {
   const dispatch = useDispatch();
-  const { items: payouts, loading, statusTab, vendorFilter, searchQuery, selectedPayout } = useSelector(
-    (state) => state.payouts
+  const { items: payouts = [], loading = false, statusTab = 'ALL', vendorFilter = 'ALL', searchQuery = '', selectedPayout = null } = useSelector(
+    (state) => state.payouts || {}
   );
   const { items: vendors } = useSelector((state) => state.vendors || { items: [] });
 

@@ -23,6 +23,17 @@ export const updateProductStatus = createAsyncThunk(
   }
 );
 
+export const updateProductPricing = createAsyncThunk(
+  'products/updateProductPricing',
+  async ({ id, originalPrice, discountedPrice, isApproved, couponCodes }, { rejectWithValue }) => {
+    try {
+      return await productsApi.updatePricingAndApproval(id, { originalPrice, discountedPrice, isApproved, couponCodes });
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
 const productsSlice = createSlice({
   name: 'products',
   initialState: {
@@ -65,7 +76,13 @@ const productsSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(updateProductStatus.fulfilled, (state, action) => {
-        const index = state.items.findIndex((p) => p.id === action.payload.id);
+        const index = state.items.findIndex((p) => p.id === action.payload.id || p._id === action.payload.id);
+        if (index !== -1) {
+          state.items[index] = action.payload;
+        }
+      })
+      .addCase(updateProductPricing.fulfilled, (state, action) => {
+        const index = state.items.findIndex((p) => p.id === action.payload.id || p._id === action.payload.id);
         if (index !== -1) {
           state.items[index] = action.payload;
         }
