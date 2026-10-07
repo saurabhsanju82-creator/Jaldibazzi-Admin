@@ -49,6 +49,7 @@ export default function VendorDetail() {
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
   const [notification, setNotification] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // 'approve' | 'reject' | null
 
   // Commission editing state
   const [isEditingCommission, setIsEditingCommission] = useState(false);
@@ -87,14 +88,24 @@ export default function VendorDetail() {
     setTimeout(() => setNotification(null), 4500);
   };
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
+    setConfirmAction('approve');
+  };
+
+  const handleReject = () => {
+    setConfirmAction('reject');
+  };
+
+  const handleConfirmApprove = async () => {
+    setConfirmAction(null);
     const vendorId = vendor.id || vendor._id;
     await dispatch(updateVendorStatus({ id: vendorId, status: 'ACTIVE' }));
     dispatch(fetchVendorById(vendorId));
     showNotification('success', `Merchant "${vendor.name || vendor.shopName}" has been successfully approved!`);
   };
 
-  const handleReject = async () => {
+  const handleConfirmReject = async () => {
+    setConfirmAction(null);
     const vendorId = vendor.id || vendor._id;
     await dispatch(updateVendorStatus({ id: vendorId, status: 'REJECTED' }));
     dispatch(fetchVendorById(vendorId));
@@ -966,6 +977,83 @@ export default function VendorDetail() {
               <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-[11px] text-slate-300">
                 <strong className="text-white">Next Settlement:</strong> Scheduled automatically via Platform Treasury.
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve/Reject Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  confirmAction === 'approve'
+                    ? 'bg-emerald-100 text-emerald-600'
+                    : 'bg-rose-100 text-rose-600'
+                }`}
+              >
+                {confirmAction === 'approve' ? (
+                  <FiCheck className="text-lg stroke-[3]" />
+                ) : (
+                  <FiSlash className="text-lg" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  {confirmAction === 'approve' ? 'Approve Merchant?' : 'Reject Application?'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {confirmAction === 'approve'
+                    ? 'Authorize vendor to start selling'
+                    : 'Decline merchant registration'}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+              {confirmAction === 'approve' ? (
+                <>
+                  Are you sure you want to approve{' '}
+                  <strong className="text-slate-900">{vendor?.name || vendor?.shopName}</strong>?
+                  The vendor will be authorized to access the vendor portal and list products immediately.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to reject the application for{' '}
+                  <strong className="text-slate-900">{vendor?.name || vendor?.shopName}</strong>?
+                </>
+              )}
+            </p>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmAction === 'approve' ? handleConfirmApprove : handleConfirmReject}
+                className={`px-4 py-2 text-xs font-semibold text-white rounded-lg transition shadow-sm cursor-pointer flex items-center gap-1.5 ${
+                  confirmAction === 'approve'
+                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                    : 'bg-rose-600 hover:bg-rose-500'
+                }`}
+              >
+                {confirmAction === 'approve' ? (
+                  <>
+                    <FiCheck className="stroke-[3]" /> Yes, Approve
+                  </>
+                ) : (
+                  <>
+                    <FiSlash /> Yes, Reject
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

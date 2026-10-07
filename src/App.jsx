@@ -18,6 +18,7 @@ import SettingsPage from './components/settings/SettingsPage';
 import UsersPage from './components/users/UsersPage';
 import PaymentsPage from './components/payments/PaymentsPage';
 import EmailsPage from './components/emails/EmailsPage';
+import ContactInquiries from './components/inquiries/ContactInquiries';
 import VendorPayouts from './components/payouts/VendorPayouts';
 import ScrollToTop from './components/common/ScrollToTop';
 
@@ -239,6 +240,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/inquiries"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <ContactInquiries />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/contact-inquiries" element={<Navigate to="/inquiries" replace />} />
         <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
         <Route
           path="/settings/:tab"

@@ -31,6 +31,10 @@ export const getPlatformDb = () => {
       parsed.payouts = INITIAL_PAYOUTS;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
     }
+    if (!parsed.inquiries || !Array.isArray(parsed.inquiries)) {
+      parsed.inquiries = [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    }
     return parsed;
   } catch (err) {
     console.error('Error loading mock database:', err);
@@ -336,6 +340,11 @@ const normalizeSuperAdminProduct = (p) => {
     isActive: p.isActive !== undefined ? p.isActive : (p.status === 'ACTIVE'),
     isApproved: Boolean(p.isApproved),
     lowStockThreshold: Number(p.lowStockThreshold || 10),
+    id: p._id || p.id,
+    couponCodes: Array.isArray(p.couponCodes)
+      ? p.couponCodes
+      : (Array.isArray(p.coupons) ? p.coupons.map((c) => (typeof c === 'object' ? c.code : c)).filter(Boolean) : []),
+    coupons: Array.isArray(p.coupons) ? p.coupons : [],
   };
 };
 
@@ -414,10 +423,13 @@ export const productsApi = {
       });
       const updated = normalizeSuperAdminProduct(response.data?.data);
       if (updated) {
+        if (Array.isArray(couponCodes)) {
+          updated.couponCodes = couponCodes;
+        }
         const db = getPlatformDb();
         const index = db.products.findIndex((p) => p.id === id || p._id === id);
         if (index !== -1) {
-          db.products[index] = { ...db.products[index], ...updated, couponCodes: Array.isArray(couponCodes) ? couponCodes : updated.couponCodes };
+          db.products[index] = { ...db.products[index], ...updated, couponCodes: updated.couponCodes };
           savePlatformDb(db);
         }
         return updated;
@@ -1363,6 +1375,73 @@ export const pincodesApi = {
     }
   },
 };
+
+export const inquiriesApi = {
+  getAll: async (params = {}) => {
+    try {
+      const response = await axiosClient.get('/inquiries', { params });
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+    } catch (err) {
+      console.warn('GET /inquiries failed, falling back to local platform DB:', err.message);
+    }
+    const db = getPlatformDb();
+    let list = Array.isArray(db.inquiries) ? [...db.inquiries] : [];
+    if (params.status && params.status !== 'ALL') {
+      list = list.filter((i) => i.status === params.status);
+    }
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (i) =>
+          (i.name && i.name.toLowerCase().includes(q)) ||
+          (i.email && i.email.toLowerCase().includes(q)) ||
+          (i.topic && i.topic.toLowerCase().includes(q)) ||
+          (i.orderNumber && i.orderNumber.toLowerCase().includes(q)) ||
+          (i.ticketId && i.ticketId.toLowerCase().includes(q)) ||
+          (i.message && i.message.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  },
+
+  updateStatus: async (id, status) => {
+    try {
+      const response = await axiosClient.patch(`/inquiries/${id}/status`, { status });
+      if (response.data?.data) {
+        return response.data.data;
+      }
+    } catch (err) {
+      console.warn('PATCH /inquiries/:id/status failed, updating locally:', err.message);
+    }
+    const db = getPlatformDb();
+    if (Array.isArray(db.inquiries)) {
+      const idx = db.inquiries.findIndex((i) => i._id === id || i.id === id);
+      if (idx !== -1) {
+        db.inquiries[idx].status = status;
+        savePlatformDb(db);
+        return db.inquiries[idx];
+      }
+    }
+    return null;
+  },
+
+  delete: async (id) => {
+    try {
+      await axiosClient.delete(`/inquiries/${id}`);
+    } catch (err) {
+      console.warn('DELETE /inquiries/:id failed, removing locally:', err.message);
+    }
+    const db = getPlatformDb();
+    if (Array.isArray(db.inquiries)) {
+      db.inquiries = db.inquiries.filter((i) => i._id !== id && i.id !== id);
+      savePlatformDb(db);
+    }
+    return { success: true };
+  },
+};
+
 
 
 

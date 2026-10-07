@@ -36,6 +36,8 @@ export default function VendorManagement() {
   const [actionAlert, setActionAlert] = useState(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
   const [confirmActivate, setConfirmActivate] = useState(null);
+  const [confirmApprove, setConfirmApprove] = useState(null);
+  const [confirmReject, setConfirmReject] = useState(null);
 
   useEffect(() => {
     dispatch(fetchVendors());
@@ -77,8 +79,20 @@ export default function VendorManagement() {
     dispatch(createVendor(values));
   };
 
-  const handleQuickApprove = async (e, vendor) => {
+  const handleQuickApprove = (e, vendor) => {
     e.stopPropagation();
+    setConfirmApprove(vendor);
+  };
+
+  const handleQuickReject = (e, vendor) => {
+    e.stopPropagation();
+    setConfirmReject(vendor);
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!confirmApprove) return;
+    const vendor = confirmApprove;
+    setConfirmApprove(null);
     const vendorId = vendor.id || vendor._id;
     await dispatch(updateVendorStatus({ id: vendorId, status: 'ACTIVE' }));
     dispatch(fetchVendors());
@@ -89,8 +103,10 @@ export default function VendorManagement() {
     setTimeout(() => setActionAlert(null), 5000);
   };
 
-  const handleQuickReject = async (e, vendor) => {
-    e.stopPropagation();
+  const handleConfirmReject = async () => {
+    if (!confirmReject) return;
+    const vendor = confirmReject;
+    setConfirmReject(null);
     const vendorId = vendor.id || vendor._id;
     await dispatch(updateVendorStatus({ id: vendorId, status: 'REJECTED' }));
     dispatch(fetchVendors());
@@ -468,6 +484,80 @@ export default function VendorManagement() {
                 className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition shadow-sm cursor-pointer flex items-center gap-1.5"
               >
                 <FiPower className="text-sm" /> Yes, Deactivate
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Approve Confirmation Modal */}
+      {confirmApprove && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <FiCheck className="text-emerald-600 text-lg stroke-[3]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Approve Merchant?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Authorize vendor to start selling</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+              Are you sure you want to approve the application for{' '}
+              <strong className="text-slate-900">{confirmApprove.name || confirmApprove.shopName}</strong>?
+              They will be able to log in to the vendor portal and start listing products immediately.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmApprove(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmApprove}
+                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <FiCheck className="text-sm stroke-[3]" /> Yes, Approve
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {confirmReject && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                <FiSlash className="text-rose-600 text-lg" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Reject Application?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Decline merchant registration</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+              Are you sure you want to reject the application for{' '}
+              <strong className="text-slate-900">{confirmReject.name || confirmReject.shopName}</strong>?
+              Their status will be marked as rejected.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmReject(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <FiSlash className="text-sm" /> Yes, Reject
               </button>
             </div>
           </div>

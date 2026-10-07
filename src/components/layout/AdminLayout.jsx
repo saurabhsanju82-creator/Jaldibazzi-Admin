@@ -20,6 +20,7 @@ import {
   FiBriefcase,
   FiPackage,
   FiChevronDown,
+  FiMessageSquare,
 } from 'react-icons/fi';
 
 export default function AdminLayout({ children }) {
@@ -73,6 +74,7 @@ export default function AdminLayout({ children }) {
     { id: 'orders', path: '/orders', label: 'Orders', icon: FiShoppingBag },
     { id: 'payments', path: '/payments', label: 'Payments', icon: FiCreditCard },
     { id: 'users', path: '/users', label: 'Users', icon: FiUsers },
+    { id: 'inquiries', path: '/inquiries', label: 'Contact Inquiries', icon: FiMessageSquare },
     { id: 'emails', path: '/emails', label: 'Emails', icon: FiMail },
     { id: 'store-settings', path: '/store-settings', label: 'Store Settings', icon: FiSliders },
     { id: 'settings', path: '/settings', label: 'Settings', icon: FiSettings },

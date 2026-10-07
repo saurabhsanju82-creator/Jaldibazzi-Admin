@@ -72,7 +72,9 @@ export default function ProductMonitoring() {
     setPricingForm({
       originalPrice: oPrice || '',
       discountedPrice: dPrice || '',
-      couponCodes: Array.isArray(product.couponCodes) ? [...product.couponCodes] : [],
+      couponCodes: Array.isArray(product.couponCodes)
+        ? [...product.couponCodes]
+        : (Array.isArray(product.coupons) ? product.coupons.map((c) => (typeof c === 'object' ? c.code : c)).filter(Boolean) : []),
     });
   };
 
@@ -91,6 +93,7 @@ export default function ProductMonitoring() {
         couponCodes: pricingForm.couponCodes || [],
       })
     );
+    dispatch(fetchAllProducts());
     setPricingModalProduct(null);
   };
 
