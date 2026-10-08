@@ -78,11 +78,12 @@ const payoutsSlice = createSlice({
       })
       // updatePayoutStatus
       .addCase(updatePayoutStatus.fulfilled, (state, action) => {
-        const index = state.items.findIndex((p) => p.id === action.payload.id);
+        const payloadId = action.payload.id || action.payload._id;
+        const index = state.items.findIndex((p) => (p.id || p._id) === payloadId);
         if (index !== -1) {
           state.items[index] = action.payload;
         }
-        if (state.selectedPayout && state.selectedPayout.id === action.payload.id) {
+        if (state.selectedPayout && (state.selectedPayout.id || state.selectedPayout._id) === payloadId) {
           state.selectedPayout = action.payload;
         }
       })

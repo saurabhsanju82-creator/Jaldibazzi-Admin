@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -20,9 +20,12 @@ import {
   FiUser,
   FiX,
   FiShield,
-  FiChevronDown
+  FiChevronDown,
+  FiChevronLeft,
+  FiChevronRight
 } from 'react-icons/fi';
 import {
+  fetchPayouts,
   updatePayoutStatus,
   createPayout,
   setStatusTab,
@@ -39,6 +42,10 @@ export default function VendorPayouts() {
   );
   const { items: vendors } = useSelector((state) => state.vendors || { items: [] });
 
+  useEffect(() => {
+    dispatch(fetchPayouts());
+  }, [dispatch]);
+
   // Modal states
   const [settleModalPayout, setSettleModalPayout] = useState(null);
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -52,10 +59,14 @@ export default function VendorPayouts() {
     vendorId: vendors[0]?.id || vendors[0]?._id || '',
     period: 'Current Cycle (Sep 2026)',
     grossSales: 5000,
-    commissionRate: 10,
+    commissionRate: 0,
     paymentMethod: 'Bank Wire (ACH)',
     notes: 'Manual settlement cycle initiated by Super Admin.'
   });
+
+  // Pagination
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Notification Banner
   const [notification, setNotification] = useState(null);
@@ -130,6 +141,15 @@ export default function VendorPayouts() {
     });
   }, [payouts, statusTab, vendorFilter, searchQuery]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusTab, vendorFilter, searchQuery]);
+
+  // Paginated slice
+  const totalPages = Math.max(1, Math.ceil(filteredPayouts.length / PAGE_SIZE));
+  const pagedPayouts = filteredPayouts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   // Open Settle Modal
   const handleOpenSettleModal = (payout) => {
     setSettleModalPayout(payout);
@@ -201,7 +221,7 @@ export default function VendorPayouts() {
     ) || vendors[0];
 
     const gross = Number(newPayoutForm.grossSales) || 0;
-    const rate = Number(newPayoutForm.commissionRate) || 10;
+    const rate = Number(newPayoutForm.commissionRate) || 0;
     const comm = Math.round((gross * rate) / 100);
     const net = gross - comm;
 
@@ -513,7 +533,7 @@ export default function VendorPayouts() {
                   </td>
                 </tr>
               ) : (
-                filteredPayouts.map((p) => {
+                pagedPayouts.map((p) => {
                   const isSettled = p.status === 'SETTLED';
                   const isPending = p.status === 'PENDING';
 
@@ -578,8 +598,8 @@ export default function VendorPayouts() {
                         <div className="text-slate-700 font-medium">
                           ₹{(p.commissionAmount || 0).toLocaleString()}
                         </div>
-                        <div className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 inline-block px-1.5 py-0.2 rounded-md mt-0.5">
-                          {p.commissionRate || 10}% cut
+                        <div className="text-[10px] text-slate-500 font-semibold bg-slate-100 inline-block px-1.5 py-0.2 rounded-md mt-0.5">
+                          {p.commissionRate || 0}% cut
                         </div>
                       </td>
 
@@ -686,6 +706,55 @@ export default function VendorPayouts() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {filteredPayouts.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs text-slate-500">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredPayouts.length)} of {filteredPayouts.length} payouts
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+            >
+              <FiChevronLeft className="text-sm" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((pg) => pg === 1 || pg === totalPages || Math.abs(pg - currentPage) <= 1)
+              .reduce((acc, pg, idx, arr) => {
+                if (idx > 0 && pg - arr[idx - 1] > 1) acc.push('...');
+                acc.push(pg);
+                return acc;
+              }, [])
+              .map((pg, idx) =>
+                pg === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-xs text-slate-400">…</span>
+                ) : (
+                  <button
+                    key={pg}
+                    onClick={() => setCurrentPage(pg)}
+                    className={`w-8 h-8 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      currentPage === pg
+                        ? 'bg-slate-900 text-white'
+                        : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {pg}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+            >
+              <FiChevronRight className="text-sm" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL 1: Mark as Settled Confirmation Modal */}
       {settleModalPayout && createPortal(
@@ -857,7 +926,7 @@ export default function VendorPayouts() {
                     setNewPayoutForm((prev) => ({
                       ...prev,
                       vendorId: vid,
-                      commissionRate: foundVendor?.commissionRate ?? 10
+                      commissionRate: foundVendor?.commissionRate ?? 0
                     }));
                   }}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white text-xs text-slate-900"
@@ -1054,7 +1123,7 @@ export default function VendorPayouts() {
                   </div>
                   <div className="text-[10px] text-emerald-600">
                     Commission: ₹{(selectedPayout.commissionAmount || 0).toLocaleString()} (
-                    {selectedPayout.commissionRate}%)
+                    {selectedPayout.commissionRate || 0}%)
                   </div>
                 </div>
               </div>
@@ -1093,14 +1162,27 @@ export default function VendorPayouts() {
                 )}
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => dispatch(clearSelectedPayout())}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition cursor-pointer"
                 >
-                  Close Audit
+                  Close
                 </button>
+                {selectedPayout.status === 'PENDING' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = selectedPayout;
+                      dispatch(clearSelectedPayout());
+                      handleOpenSettleModal(p);
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                  >
+                    <FiCheck className="stroke-[3]" /> Mark as Settled
+                  </button>
+                )}
               </div>
             </div>
           </div>

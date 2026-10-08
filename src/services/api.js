@@ -537,52 +537,6 @@ export const analyticsApi = {
   }
 };
 
-// Payouts API (Manual controlled flow)
-export const payoutsApi = {
-  getAll: async () => {
-    await delay(100);
-    const db = getPlatformDb();
-    return db.payouts || [];
-  },
-  updateStatus: async (id, { status, referenceNumber, notes, settledAt }) => {
-    await delay(120);
-    const db = getPlatformDb();
-    const index = db.payouts.findIndex((p) => p.id === id);
-    if (index === -1) throw new Error('Payout record not found');
-    
-    db.payouts[index] = {
-      ...db.payouts[index],
-      status: status.toUpperCase(),
-      ...(referenceNumber !== undefined ? { referenceNumber } : {}),
-      ...(notes !== undefined ? { notes } : {}),
-      ...(settledAt !== undefined
-        ? { settledAt }
-        : status.toUpperCase() === 'SETTLED' && !db.payouts[index].settledAt
-        ? { settledAt: new Date().toISOString() }
-        : status.toUpperCase() === 'PENDING'
-        ? { settledAt: null }
-        : {})
-    };
-    savePlatformDb(db);
-    return db.payouts[index];
-  },
-  create: async (payoutData) => {
-    await delay(120);
-    const db = getPlatformDb();
-    const newPayout = {
-      id: `PO-${Date.now().toString().slice(-4)}`,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-      settledAt: null,
-      referenceNumber: '',
-      ...payoutData
-    };
-    if (!db.payouts) db.payouts = [];
-    db.payouts.unshift(newPayout);
-    savePlatformDb(db);
-    return newPayout;
-  }
-};
 
 // Coupons API (Global Marketplace Promotions)
 export const couponsApi = {
@@ -1442,7 +1396,75 @@ export const inquiriesApi = {
   },
 };
 
+export const payoutsApi = {
+  getAll: async () => {
+    try {
+      const response = await axiosClient.get('/payouts');
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+    } catch (err) {
+      console.warn('GET /payouts failed:', err.message);
+    }
+    return [];
+  },
 
+  updateStatus: async (id, updates) => {
+    try {
+      const response = await axiosClient.patch(`/payouts/${id}/status`, updates);
+      if (response.data?.data) return response.data.data;
+      if (response.data?.id || response.data?._id) return response.data;
+    } catch (err) {
+      console.warn('PATCH /payouts/:id/status failed, updating locally:', err.message);
+    }
+    const db = getPlatformDb();
+    if (Array.isArray(db.payouts)) {
+      const idx = db.payouts.findIndex((p) => p.id === id || p._id === id);
+      if (idx !== -1) {
+        const current = db.payouts[idx];
+        const newStatus = (updates.status || current.status).toUpperCase();
+        let settledAt = current.settledAt;
+        if (updates.settledAt !== undefined) {
+          settledAt = updates.settledAt;
+        } else if (newStatus === 'SETTLED' && !current.settledAt) {
+          settledAt = new Date().toISOString();
+        } else if (newStatus === 'PENDING') {
+          settledAt = null;
+        }
+        db.payouts[idx] = { ...current, ...updates, status: newStatus, settledAt };
+        savePlatformDb(db);
+        return db.payouts[idx];
+      }
+    }
+    return { id, ...updates };
+  },
+
+  create: async (payoutData) => {
+    try {
+      const response = await axiosClient.post('/payouts', payoutData);
+      if (response.data?.data) return response.data.data;
+      if (response.data?.id || response.data?._id) return response.data;
+    } catch (err) {
+      console.warn('POST /payouts failed, saving locally:', err.message);
+    }
+    const db = getPlatformDb();
+    const newPayout = {
+      ...payoutData,
+      id: `PO-${Date.now().toString().slice(-4)}`,
+      status: 'PENDING',
+      referenceNumber: '',
+      createdAt: new Date().toISOString(),
+      settledAt: null,
+    };
+    if (!Array.isArray(db.payouts)) db.payouts = [];
+    db.payouts.unshift(newPayout);
+    savePlatformDb(db);
+    return newPayout;
+  },
+};
 
 
 
