@@ -22,7 +22,7 @@ import ContactInquiries from './components/inquiries/ContactInquiries';
 import VendorPayouts from './components/payouts/VendorPayouts';
 import ScrollToTop from './components/common/ScrollToTop';
 
-import { checkAdminAuth, setUnauthenticated } from './store/slices/authSlice';
+import { checkAdminAuth, setUnauthenticated, logoutAdmin } from './store/slices/authSlice';
 import { fetchVendors } from './store/slices/vendorsSlice';
 import { fetchAllOrders } from './store/slices/ordersSlice';
 import { fetchAllProducts } from './store/slices/productsSlice';
@@ -77,6 +77,47 @@ export default function App() {
       dispatch(fetchSettings());
       dispatch(fetchPayouts());
     }
+  }, [dispatch, isAuthenticated]);
+
+  // Security: Auto logout when admin is idle
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Timeout duration in minutes from env (default: 15 minutes)
+    const timeoutMinutes = Number(import.meta.env.VITE_ADMIN_IDLE_TIMEOUT_MINUTES) || 15;
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+
+    let timer = null;
+    let lastReset = Date.now();
+
+    const handleLogout = () => {
+      dispatch(logoutAdmin());
+    };
+
+    const resetTimer = () => {
+      const now = Date.now();
+      if (now - lastReset < 1000) return; // Throttle to at most once per second
+      lastReset = now;
+
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(handleLogout, timeoutMs);
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetTimer, { passive: true });
+    });
+
+    // Start initial idle timer
+    timer = setTimeout(handleLogout, timeoutMs);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
   }, [dispatch, isAuthenticated]);
 
   return (

@@ -8,7 +8,7 @@ import {
   updateOrderStatus
 } from '../../store/slices/ordersSlice';
 import OrderDetailModal from './OrderDetailModal';
-import { FiSearch, FiShoppingBag, FiEye, FiCheckCircle, FiClock, FiTruck, FiXCircle, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiShoppingBag, FiEye, FiCheckCircle, FiClock, FiTruck, FiXCircle, FiRefreshCw, FiDownload } from 'react-icons/fi';
 
 export default function PlatformOrders() {
   const dispatch = useDispatch();
@@ -27,6 +27,69 @@ export default function PlatformOrders() {
 
   const handleUpdateStatus = (id, newStatus) => {
     dispatch(updateOrderStatus({ id, status: newStatus }));
+  };
+
+  const handleExportCsv = () => {
+    if (!orders || orders.length === 0) return;
+
+    const headers = [
+      'Order ID',
+      'Order Number',
+      'Customer Name',
+      'Customer Email',
+      'Merchant / Vendor',
+      'Items Count',
+      'Total Amount (INR)',
+      'Payment Method',
+      'Payment Status',
+      'Order Status',
+      'Created Date'
+    ];
+
+    const escapeCell = (val) => `"${String(val !== null && val !== undefined ? val : '').replace(/"/g, '""')}"`;
+
+    const rows = orders.map((o) => {
+      const vendorNames = o.vendorName
+        ? o.vendorName
+        : Array.isArray(o.vendorOrders) && o.vendorOrders.length > 0
+        ? o.vendorOrders
+            .map((vo) => vo.vendor?.shopName || vo.vendor?.name || vo.vendorName || '')
+            .filter(Boolean)
+            .join('; ')
+        : 'N/A';
+
+      const itemsCount = Array.isArray(o.items) ? o.items.length : 0;
+      const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString() : '';
+
+      return [
+        o.id || o._id || '',
+        o.orderNumber || o.id || '',
+        o.customerName || o.user?.name || 'Customer',
+        o.customerEmail || o.user?.email || '',
+        vendorNames || 'N/A',
+        itemsCount,
+        o.totalAmount || o.total || 0,
+        o.paymentMethod || 'N/A',
+        o.paymentStatus || 'N/A',
+        o.status || 'PENDING',
+        dateStr
+      ];
+    });
+
+    const csvContent = [
+      headers.map(escapeCell).join(','),
+      ...rows.map((row) => row.map(escapeCell).join(','))
+    ].join('\r\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `platform_orders_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const statusBadges = {
@@ -48,8 +111,19 @@ export default function PlatformOrders() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-500">
-          Total orders logged: <strong className="text-slate-900">{orders.length}</strong>
+        <div className="flex items-center gap-3">
+          <div className="text-xs font-mono text-slate-500">
+            Total orders: <strong className="text-slate-900">{orders.length}</strong>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={orders.length === 0}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer disabled:cursor-not-allowed"
+          >
+            <FiDownload className="text-sm" />
+            <span>Export CSV</span>
+          </button>
         </div>
       </div>
 
