@@ -22,6 +22,7 @@ import {
   FiChevronDown,
   FiMessageSquare,
 } from 'react-icons/fi';
+import logoImg from '../../assets/logo.png';
 
 export default function AdminLayout({ children }) {
   const dispatch = useDispatch();
@@ -159,13 +160,13 @@ export default function AdminLayout({ children }) {
       {/* Sidebar for Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shrink-0 select-none h-full">
         {/* Brand Header */}
-        <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800/80 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <FiShield className="text-lg" />
+        <div className="h-16 px-5 flex items-center gap-3 border-b border-slate-800/80 shrink-0 bg-slate-950/40">
+          <div className="bg-white px-2 py-1 rounded-lg shrink-0 flex items-center justify-center shadow-xs">
+            <img src={logoImg} alt="JaldiBaazi" className="h-6 w-auto object-contain" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-white tracking-tight">Jaldibaazi Admin</div>
-            <div className="text-[11px] text-slate-400 uppercase tracking-wider font-mono">Control Center</div>
+            <div className="text-sm font-semibold text-white tracking-tight">Super Admin</div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">Control Center</div>
           </div>
         </div>
 
@@ -203,9 +204,11 @@ export default function AdminLayout({ children }) {
 
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between h-16 px-4 bg-slate-900 text-white border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-2">
-          <FiShield className="text-emerald-400 text-lg" />
-          <span className="font-bold text-sm">Jaldibaazi Admin</span>
+        <div className="flex items-center gap-2.5">
+          <div className="bg-white px-1.5 py-1 rounded-md shrink-0 flex items-center justify-center shadow-xs">
+            <img src={logoImg} alt="JaldiBaazi" className="h-5 w-auto object-contain" />
+          </div>
+          <span className="font-bold text-sm">Super Admin</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

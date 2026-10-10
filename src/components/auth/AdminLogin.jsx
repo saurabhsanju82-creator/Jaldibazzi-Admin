@@ -14,6 +14,8 @@ import {
   FiEyeOff,
   FiAlertCircle,
 } from 'react-icons/fi';
+import loginBgImage from '../../assets/login.jpeg';
+import logoImg from '../../assets/logo.png';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Admin email is required').email('Please enter a valid email address'),
@@ -58,24 +60,22 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="relative min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-center items-center px-4 sm:px-6 py-12 antialiased overflow-hidden select-none">
-      {/* Dotted pattern background */}
-      <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] opacity-70 pointer-events-none"></div>
-
-      {/* Ambient gradient blobs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-300/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div
+      className="relative min-h-screen bg-cover bg-center bg-no-repeat text-slate-800 flex flex-col justify-center items-center px-4 sm:px-6 py-12 antialiased overflow-hidden select-none"
+      style={{ backgroundImage: `url(${loginBgImage})` }}
+    >
+      {/* Dark overlay for contrast */}
+      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] pointer-events-none"></div>
 
       {/* Platform Branding */}
-      <div className="relative z-10 w-full max-w-md mb-6 text-center">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-          Jaldibaazi
-        </h1>
+      <div className="relative z-10 w-full max-w-md mb-6 flex flex-col items-center justify-center">
+        <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl border border-white/50 flex items-center justify-center">
+          <img src={logoImg} alt="JaldiBaazi" className="h-9 w-auto object-contain" />
+        </div>
       </div>
 
       {/* Main Login Card */}
-      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xl shadow-slate-200/60">
+      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-2xl shadow-slate-950/30">
         {error && (
           <div className="mb-6 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-start justify-between gap-2 animate-fadeIn shadow-xs">
             <div className="flex items-start gap-2">
@@ -169,7 +169,7 @@ export default function AdminLogin() {
         </form>
       </div>
 
-      <div className="relative z-10 mt-8 text-center text-xs text-slate-500 font-medium">
+      <div className="relative z-10 mt-8 text-center text-xs text-white/80 font-medium drop-shadow-sm">
         JaldiBaazi &copy; 2026 &bull; Super Administrator Mode
       </div>
     </div>

@@ -14,6 +14,8 @@ const categorySchema = z.object({
 
 export default function CategoryModal({ isOpen, onClose, onSave, category }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [sizesList, setSizesList] = useState([]);
+  const [sizeInput, setSizeInput] = useState('');
   const fileInputRef = useRef(null);
 
   const {
@@ -41,8 +43,26 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
         image: category?.image || '',
         isActive: category?.isActive !== undefined ? category.isActive : true,
       });
+      setSizesList(Array.isArray(category?.sizes) ? category.sizes : []);
+      setSizeInput('');
     }
   }, [category, isOpen, reset]);
+
+  const handleAddSize = () => {
+    if (!sizeInput.trim()) return;
+    const splitSizes = sizeInput
+      .split(',')
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s && !sizesList.includes(s));
+    if (splitSizes.length > 0) {
+      setSizesList([...sizesList, ...splitSizes]);
+      setSizeInput('');
+    }
+  };
+
+  const handleRemoveSize = (sizeToRemove) => {
+    setSizesList(sizesList.filter((s) => s !== sizeToRemove));
+  };
 
   const imageValue = watch('image');
   const isActiveValue = watch('isActive');
@@ -83,6 +103,7 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
       description: (values.description || '').trim(),
       image: (values.image || '').trim(),
       isActive: values.isActive,
+      sizes: sizesList,
     });
     onClose();
   };
@@ -102,8 +123,8 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
               </h3>
               <p className="text-[11px] text-slate-400">
                 {category
-                  ? 'Modify category parameters and thumbnail'
-                  : 'Add a new catalog category for storefront and products'}
+                  ? 'Modify category parameters, sizes, and thumbnail'
+                  : 'Add a new catalog category with optional sizes for products'}
               </p>
             </div>
           </div>
@@ -150,6 +171,86 @@ export default function CategoryModal({ isOpen, onClose, onSave, category }) {
               {...register('description')}
               className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition resize-none"
             />
+          </div>
+
+          {/* Sizes (Optional) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-700">
+                Available Sizes (Optional)
+              </label>
+              <span className="text-[10px] text-slate-400">List of sizes for products in this category</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={sizeInput}
+                onChange={(e) => setSizeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSize();
+                  }
+                }}
+                placeholder="Type size (e.g. S, M, L, XL or 38, 40) and press Enter"
+                className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition"
+              />
+              <button
+                type="button"
+                onClick={handleAddSize}
+                className="px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg border border-slate-200 transition cursor-pointer"
+              >
+                + Add
+              </button>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+              <span className="text-[10px] text-slate-400">Presets:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const apparel = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+                  setSizesList(Array.from(new Set([...sizesList, ...apparel])));
+                }}
+                className="text-[10px] text-blue-600 hover:underline cursor-pointer font-medium"
+              >
+                + Apparel (XS-XXL)
+              </button>
+              <span className="text-slate-300 text-[10px]">•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const shoes = ['UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'];
+                  setSizesList(Array.from(new Set([...sizesList, ...shoes])));
+                }}
+                className="text-[10px] text-blue-600 hover:underline cursor-pointer font-medium"
+              >
+                + Shoes (UK 6-11)
+              </button>
+            </div>
+
+            {/* Sizes Tags */}
+            {sizesList.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                {sizesList.map((sz) => (
+                  <span
+                    key={sz}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-800 bg-white border border-slate-200 rounded-md shadow-2xs"
+                  >
+                    <span>{sz}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSize(sz)}
+                      className="text-slate-400 hover:text-rose-600 cursor-pointer ml-0.5 text-xs font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           {/* Category Image - Drag and Drop Only */}
           <div>

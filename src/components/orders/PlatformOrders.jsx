@@ -39,6 +39,7 @@ export default function PlatformOrders() {
       'Customer Email',
       'Merchant / Vendor',
       'Items Count',
+      'Items Details',
       'Total Amount (INR)',
       'Payment Method',
       'Payment Status',
@@ -59,6 +60,11 @@ export default function PlatformOrders() {
         : 'N/A';
 
       const itemsCount = Array.isArray(o.items) ? o.items.length : 0;
+      const itemsDetail = Array.isArray(o.items)
+        ? o.items
+            .map((it) => `${it.name || 'Item'}${it.size ? ` (Size: ${it.size})` : ''} x${it.quantity || 1}`)
+            .join('; ')
+        : '';
       const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString() : '';
 
       return [
@@ -68,6 +74,7 @@ export default function PlatformOrders() {
         o.customerEmail || o.user?.email || '',
         vendorNames || 'N/A',
         itemsCount,
+        itemsDetail,
         o.totalAmount || o.total || 0,
         o.paymentMethod || 'N/A',
         o.paymentStatus || 'N/A',

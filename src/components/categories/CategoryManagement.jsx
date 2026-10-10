@@ -301,6 +301,16 @@ export default function CategoryManagement() {
                       <p className="text-xs text-slate-500 mt-1 line-clamp-1">
                         {cat.description || 'No description provided'}
                       </p>
+                      {Array.isArray(cat.sizes) && cat.sizes.length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                          <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Sizes:</span>
+                          {cat.sizes.map((sz) => (
+                            <span key={sz} className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
+                              {sz}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 

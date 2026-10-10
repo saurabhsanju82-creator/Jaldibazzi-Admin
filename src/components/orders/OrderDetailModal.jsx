@@ -96,7 +96,14 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }) {
               {order.items.map((item, idx) => (
                 <div key={idx} className="py-2.5 flex items-center justify-between">
                   <div>
-                    <div className="font-medium text-slate-900">{item.name}</div>
+                    <div className="font-medium text-slate-900 flex items-center gap-2">
+                      <span>{item.name}</span>
+                      {item.size && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
+                          Size: {item.size}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-slate-400 text-[11px]">
                       Qty: {item.quantity} &times; ₹{item.price}
                     </div>
